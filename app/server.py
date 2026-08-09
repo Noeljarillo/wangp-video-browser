@@ -543,7 +543,12 @@ class Handler(BaseHTTPRequestHandler):
         if route.startswith("/static/"):
             target = (WEB_DIR / route[len("/static/"):]).resolve()
             if WEB_DIR.resolve() in target.parents:
-                return self._send_file(target)
+                # Fonts never change without changing filename, so they can be
+                # cached hard. The stylesheet and script must not be, or an
+                # updated launcher would keep serving yesterday's UI.
+                immutable = target.suffix.lower() in (".woff2", ".woff", ".ttf", ".png", ".svg")
+                cache = "private, max-age=86400, immutable" if immutable else "no-cache"
+                return self._send_file(target, cache=cache)
             return self._send_json({"error": "forbidden"}, 403)
 
         return self._send_json({"error": "not found"}, 404)

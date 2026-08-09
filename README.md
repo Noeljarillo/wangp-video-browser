@@ -47,10 +47,13 @@ LoRAs, sliding-window settings, generation time, plus real stream info (codec, f
 Put up to four clips side by side on one shared transport — play them all together, scrub them
 together, step a frame at a time, solo the audio of any one.
 
-Underneath, the **settings diff** does the part you'd otherwise do by squinting: it lays every
-setting side by side, highlights the ones that differ and hides the ~40 that don't. In the shot
-above, that's *seed*, *video_length*, *multi_prompts_gen_type*, *sliding_window_size* and the
-prompt — everything else was identical.
+Underneath, the **settings diff** does the part you'd otherwise do by squinting: it lays all
+~49 settings side by side and shows you only the ones that differ. In the shot above, two runs of
+an identical prompt come down to four rows — *seed* and three timestamps. Everything else matched.
+
+When the prompt itself changed, it goes further and diffs it **word by word**, striking through
+what you removed and marking what you added, in place inside the sentence. Finding a three-word
+change in a 400-word prompt stops being a reading exercise.
 
 ### 🎚️ Catch differences too subtle for side-by-side
 
@@ -64,12 +67,24 @@ that put them in the **same screen position**:
   near-identical generations and whatever moved jumps straight out at you. The highlighted tag
   always tells you which one you're looking at.
 
+### 📱 Works properly on your phone
+
+<img src="screenshots/mobile.jpg" width="290" alt="Library on mobile"> <img src="screenshots/mobile-cmp.jpg" width="290" alt="Wipe comparison on mobile">
+
+Not a shrunk desktop layout — a different one. The library becomes a two-up contact sheet,
+navigation moves to a bottom bar within thumb reach, preview arrives as a sheet, and comparison
+defaults to **wipe**, because two 195-pixel-wide frames side by side tell you nothing while a
+wipe uses the whole screen. The settings diff turns into stacked cards instead of an unreadable
+three-column table.
+
+Reach it from your phone over your LAN through Pinokio's remote access.
+
 ### 🌗 Fits wherever you run it
 
-![Light theme](screenshots/light.jpg)
+![Dark theme](screenshots/dark.jpg)
 
 Follows your system or Pinokio colour scheme, with a manual override that sticks. The video
-stages stay black in both, so nothing skews how you judge the footage.
+stages stay black in both themes, so nothing skews how you judge the footage.
 
 ---
 
@@ -111,8 +126,14 @@ request logging.
 4. Read the **Settings diff** underneath to see what changed.
 5. Hit **Link** to copy a URL that reopens that exact comparison, in that exact mode.
 
+**Little things that add up:** sweep your mouse across any thumbnail to scrub that clip without
+opening it · drag the divider between the library and the content to resize it, or collapse it
+entirely for full-width comparison — both are remembered · every video uses a purpose-built
+transport with a frame counter rather than the browser's default controls.
+
 **Keyboard** (Compare tab): `Space` play/pause all · `←` `→` step one frame (`Shift` for 10) ·
-`Home` back to start · `B` swap the blink clips.
+`Home` back to start · `B` swap the blink clips. The wipe divider and the scrubber are both
+focusable and driven with the arrow keys.
 
 **Comparing something from outside your outputs folder?** Drag any video onto the window. Its
 embedded WanGP metadata gets parsed in the browser and it joins the compare tray like any other.
@@ -123,6 +144,7 @@ embedded WanGP metadata gets parsed in the browser and it joins the compare tray
 
 - **Pinokio** (or any Python 3.8+).
 - **Nothing else.** Metadata is parsed with a pure-Python MP4 box reader, so `ffprobe` isn't needed.
+  The interface ships its own fonts, so it looks identical offline and on every machine.
 - `ffmpeg`/`ffprobe` are used **if present** for thumbnails and exact stream info, and the app
   degrades gracefully without them.
 
@@ -266,3 +288,12 @@ await fetch(`${BASE}/api/roots/add`, {
 - The server only ever **reads** your video files — nothing is modified, moved or deleted.
 - Thumbnails double as poster frames, so clips show a real still instead of a black box
   before you press play.
+- Colours are checked against WCAG AA in both themes, every control is reachable from the
+  keyboard, and all motion is disabled under `prefers-reduced-motion`.
+
+## Credits
+
+Typeface is [IBM Plex](https://github.com/IBM/plex) (Sans + Mono), bundled under the
+[SIL Open Font License 1.1](app/web/fonts/LICENSE.txt) so the app renders identically offline
+and on every device. Icons are drawn in the page — no icon font, no CDN, no external requests
+of any kind.

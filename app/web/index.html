@@ -2,1131 +2,156 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161c" media="(prefers-color-scheme: dark)">
 <title>WanGP Video Browser</title>
 <script>
-  // Stamp the saved theme before first paint so the page never flashes the wrong one.
+  // Runs before first paint: a stylesheet can't restore last session's theme or
+  // panel width without the page flashing the default first.
   try {
     var saved = localStorage.getItem("wvb-theme");
     if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved;
-  } catch (e) { /* private mode - fall back to the system preference */ }
+    var w = parseInt(localStorage.getItem("wvb-sidebar"), 10);
+    if (w >= 260 && w <= 560) document.documentElement.style.setProperty("--sidebar-w", w + "px");
+    if (localStorage.getItem("wvb-rail") === "1") document.documentElement.dataset.rail = "1";
+  } catch (e) { /* private mode - fall back to the defaults */ }
 </script>
-<style>
-  /* Dark is the base palette (correct default for judging footage). The light
-     palette is redefined twice on purpose: once for the system preference and
-     once for an explicit choice, so a manual toggle wins in either direction. */
-  :root {
-    --bg: #0e1015;
-    --bg-alt: #151922;
-    --panel: #1a1f2b;
-    --panel-2: #202636;
-    --line: #2a3244;
-    --line-soft: #222a38;
-    --hover: #2a3244;
-    --hover-line: #3b4761;
-    --text: #e6eaf2;
-    --muted: #8b95ab;
-    --accent: #58a6ff;
-    --accent-dim: #1f3b5c;
-    --accent-line: #2f5f96;
-    --accent-hover: #26496f;
-    --accent-text: #cfe6ff;
-    --selected: #16233a;
-    --chip: #262e40;
-    --chip-text: #a9b4c9;
-    --seed: #9ad0ff;
-    --model: #b9a6ff;
-    --warn: #f0b429;
-    --diff: #3a2a12;
-    --diff-line: #7a5a1e;
-    --diff-key: #ffd479;
-    --pick: #4a3a12;
-    --media-bg: #0a0c11;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .4);
-    --radius: 10px;
-    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  }
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) {
-      --bg: #f2f5f9;
-      --bg-alt: #ffffff;
-      --panel: #ffffff;
-      --panel-2: #eef1f7;
-      --line: #d5dce7;
-      --line-soft: #e9edf4;
-      --hover: #e7ecf4;
-      --hover-line: #bcc7d8;
-      --text: #16202f;
-      --muted: #5a6678;
-      --accent: #0b62d6;
-      --accent-dim: #dbe8fb;
-      --accent-line: #a6c6ef;
-      --accent-hover: #c7dcf8;
-      --accent-text: #0a4694;
-      --selected: #e3edfc;
-      --chip: #eef1f7;
-      --chip-text: #556174;
-      --seed: #0b62d6;
-      --model: #6b46c1;
-      --warn: #a56a00;
-      --diff: #fff5e0;
-      --diff-line: #ddb15c;
-      --diff-key: #855400;
-      --pick: #fbe9c4;
-      --media-bg: #dfe4ec;
-      --shadow: 0 1px 2px rgba(16, 32, 64, .08);
-    }
-  }
-  :root[data-theme="light"] {
-    --bg: #f2f5f9;
-    --bg-alt: #ffffff;
-    --panel: #ffffff;
-    --panel-2: #eef1f7;
-    --line: #d5dce7;
-    --line-soft: #e9edf4;
-    --hover: #e7ecf4;
-    --hover-line: #bcc7d8;
-    --text: #16202f;
-    --muted: #5a6678;
-    --accent: #0b62d6;
-    --accent-dim: #dbe8fb;
-    --accent-line: #a6c6ef;
-    --accent-hover: #c7dcf8;
-    --accent-text: #0a4694;
-    --selected: #e3edfc;
-    --chip: #eef1f7;
-    --chip-text: #556174;
-    --seed: #0b62d6;
-    --model: #6b46c1;
-    --warn: #a56a00;
-    --diff: #fff5e0;
-    --diff-line: #ddb15c;
-    --diff-key: #855400;
-    --pick: #fbe9c4;
-    --media-bg: #dfe4ec;
-    --shadow: 0 1px 2px rgba(16, 32, 64, .08);
-  }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; }
-  body {
-    background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    display: flex; flex-direction: column; overflow: hidden;
-  }
-  button, input, select { font: inherit; color: inherit; }
-  button {
-    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
-    padding: 6px 10px; cursor: pointer;
-  }
-  button:hover:not(:disabled) { background: var(--hover); border-color: var(--hover-line); }
-  button:disabled { opacity: .4; cursor: not-allowed; }
-  button.primary { background: var(--accent-dim); border-color: var(--accent-line); color: var(--accent-text); }
-  button.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-line); }
-  button.icon { padding: 6px 9px; }
-  input[type=text], input[type=search], select {
-    background: var(--bg-alt); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; width: 100%;
-  }
-  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-
-  /* ---------- top bar ---------- */
-  header {
-    display: flex; align-items: center; gap: 12px; padding: 10px 14px;
-    background: var(--bg-alt); border-bottom: 1px solid var(--line); flex: none;
-  }
-  header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .2px; white-space: nowrap; }
-  header h1 span { color: var(--muted); font-weight: 400; }
-  .tabs { display: flex; gap: 4px; margin-left: 8px; }
-  .tab { padding: 6px 14px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--muted); }
-  .tab.active { background: var(--panel); border-color: var(--line); color: var(--text); }
-  .spacer { flex: 1; }
-  .status { color: var(--muted); font-size: 12px; white-space: nowrap; }
-
-  /* ---------- layout ---------- */
-  main { flex: 1; display: flex; min-height: 0; }
-  #sidebar {
-    width: 366px; flex: none; background: var(--bg-alt); border-right: 1px solid var(--line);
-    display: flex; flex-direction: column; min-height: 0;
-  }
-  .filters { padding: 10px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
-  .filters .row { display: flex; gap: 8px; }
-  .filters label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-  #list { overflow-y: auto; padding: 8px; display: grid; gap: 8px; align-content: start; }
-
-  .card {
-    display: grid; grid-template-columns: 128px 1fr; gap: 10px; padding: 8px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-    cursor: pointer; box-shadow: var(--shadow);
-  }
-  .card:hover { border-color: var(--hover-line); }
-  .card.active { border-color: var(--accent); background: var(--selected); }
-  .card.picked { box-shadow: inset 3px 0 0 var(--warn), var(--shadow); }
-  .card .thumb {
-    width: 128px; aspect-ratio: 16/9; border-radius: 6px; background: var(--media-bg) center/cover no-repeat;
-    display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 11px; overflow: hidden;
-  }
-  .card .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .card .body { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
-  .card .title { font-size: 12px; font-weight: 600; line-height: 1.35; overflow: hidden;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  /* Tonal chips: no borders, so the varying facts read as data inside the card
-     rather than as a row of competing buttons. */
-  .badges { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-  .badge {
-    font: 500 10px/1.7 var(--mono); background: var(--chip); border: 0;
-    border-radius: 5px; padding: 0 6px; color: var(--chip-text); white-space: nowrap;
-  }
-  .badge.seed { color: var(--seed); }
-  .badge.model { color: var(--model); max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-  /* Model + date + size rarely differ between runs - demote to a quiet footer.
-     Two lines, because a single one truncates the date away. */
-  .card .foot {
-    font: 400 10px/1.5 var(--mono); color: var(--muted); display: grid; gap: 1px;
-  }
-  .card .foot > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .card .foot .model { color: var(--model); opacity: .95; }
-  .card .pick {
-    align-self: start; margin-left: auto; font-size: 11px; padding: 2px 7px; border-radius: 6px;
-    background: var(--chip); border-color: transparent; color: var(--muted);
-  }
-  .card .pick.on { background: var(--pick); border-color: var(--diff-line); color: var(--diff-key); }
-
-  /* ---------- content ---------- */
-  #content { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
-  .view { flex: 1; overflow-y: auto; padding: 14px; display: none; }
-  .view.active { display: block; }
-  .empty { color: var(--muted); text-align: center; padding: 60px 20px; }
-
-  /* preview: video on top, details flowing underneath it at the same width */
-  .preview-wrap { display: flex; flex-direction: column; gap: 14px; max-width: 1100px; margin: 0 auto; }
-  .preview-stage { width: 100%; }
-  .stage-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
-  .video-box { background: #000; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-  /* Cap the stage so the details below it stay reachable on short windows. */
-  .video-box video { width: 100%; display: block; max-height: 56vh; aspect-ratio: 16/9; object-fit: contain; background: #000; }
-  .meta-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; align-items: start; }
-  .section.span-all { grid-column: 1 / -1; }
-  .section { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-  .section > h3 {
-    margin: 0; padding: 8px 12px; font-size: 11px; letter-spacing: .6px; text-transform: uppercase;
-    color: var(--muted); background: var(--bg-alt); border-bottom: 1px solid var(--line);
-    display: flex; align-items: center; gap: 8px;
-  }
-  .section > h3 button { margin-left: auto; font-size: 11px; padding: 2px 8px; }
-  .kv { display: grid; grid-template-columns: 168px minmax(0, 1fr); }
-  .kv > div { padding: 5px 12px; border-bottom: 1px solid var(--line-soft); min-width: 0; }
-  .kv > div:nth-child(2n+1) { color: var(--muted); font-size: 12px; }
-  .kv > div:nth-child(2n) { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
-  .kv > div:nth-last-child(-n+2) { border-bottom: 0; }
-  .filename {
-    padding: 8px 12px; font: 400 12px/1.5 var(--mono); overflow-wrap: anywhere;
-    border-bottom: 1px solid var(--line-soft); color: var(--text);
-  }
-  .prompt { padding: 10px 12px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
-
-  /* compare */
-  .cmp-grid { display: grid; gap: 10px; }
-  .cmp-grid.n1 { grid-template-columns: 1fr; }
-  .cmp-grid.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cmp-grid.n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .cmp-grid.n4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  @media (max-width: 900px) { .cmp-grid { grid-template-columns: 1fr !important; } }
-  .cmp-cell { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-  .cmp-cell header {
-    background: var(--bg-alt); padding: 6px 8px; gap: 6px; font-size: 11px; border-bottom: 1px solid var(--line);
-  }
-  .cmp-cell .label { font-family: var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cmp-cell .idx { background: var(--accent-dim); border-radius: 4px; padding: 1px 6px; color: var(--accent-text); font-weight: 600; }
-  .cmp-cell video { width: 100%; display: block; background: #000; aspect-ratio: 16/9; object-fit: contain; }
-  .cmp-media { position: relative; }
-  /* Frame-accurate readout, per clip - lets you cite an exact frame. */
-  .timecode {
-    position: absolute; left: 8px; bottom: 8px; font: 500 11px/1.6 var(--mono);
-    background: rgba(6, 8, 12, .72); color: #e6eaf2; border-radius: 5px; padding: 1px 7px;
-    pointer-events: none; letter-spacing: .3px;
-  }
-
-  /* ---------- wipe + blink (superposition modes, exactly 2 clips) ---------- */
-  .stack {
-    position: relative; width: 100%; max-width: 1100px; margin: 0 auto; background: #000;
-    border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
-    aspect-ratio: 16/9; touch-action: none;
-  }
-  .stack video {
-    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000;
-  }
-  .stack .over { clip-path: inset(0 calc(100% - var(--wipe, 50%)) 0 0); }
-  .stack.blink .under { visibility: hidden; }
-  .stack.blink.flip .under { visibility: visible; }
-  .stack.blink.flip .over { visibility: hidden; }
-  .stack.blink .over { clip-path: none; }
-  .wipe-handle {
-    position: absolute; top: 0; bottom: 0; left: var(--wipe, 50%); width: 2px;
-    background: var(--warn); cursor: ew-resize; transform: translateX(-1px);
-  }
-  .wipe-handle::after {
-    content: "⇔"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    background: var(--warn); color: #1a1200; border-radius: 999px; width: 28px; height: 28px;
-    display: flex; align-items: center; justify-content: center; font-size: 13px;
-  }
-  .stack .tag {
-    position: absolute; top: 8px; font: 600 11px/1.7 var(--mono); padding: 1px 7px; border-radius: 5px;
-    background: rgba(6, 8, 12, .72); color: #e6eaf2; pointer-events: none;
-  }
-  .stack .tag.a { left: 8px; }
-  .stack .tag.b { right: 8px; }
-  .stack .tag.live { background: var(--warn); color: #1a1200; }
-  .modes { display: flex; gap: 2px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
-  .modes button { border: 0; background: transparent; padding: 4px 10px; border-radius: 6px; color: var(--muted); font-size: 12px; }
-  .modes button.on { background: var(--accent-dim); color: var(--accent-text); }
-  .transport {
-    position: sticky; bottom: 0; margin-top: 12px; display: flex; align-items: center; gap: 10px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 12px;
-  }
-  .transport input[type=range] { flex: 1; accent-color: var(--accent); }
-  .transport .time { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
-  .toggle.on { background: var(--accent-dim); border-color: var(--accent-line); color: var(--accent-text); }
-
-  /* diff table */
-  /* Fixed layout so every clip's column is the same width - with auto layout a
-     long prompt in one column starves the others into unreadable slivers. */
-  table.diff { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
-  table.diff th, table.diff td {
-    text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top;
-    overflow-wrap: anywhere;
-  }
-  table.diff thead th { position: sticky; top: 0; background: var(--bg-alt); color: var(--muted); font-weight: 600; z-index: 1; }
-  table.diff td.key { color: var(--muted); width: 190px; }
-  table.diff td { font-family: var(--mono); }
-  table.diff tr.differs { background: var(--diff); }
-  table.diff tr.differs td.key { color: var(--diff-key); }
-  table.diff tr.differs td { border-bottom-color: var(--diff-line); }
-  table.diff tr.group-head td { background: var(--panel-2); color: var(--muted); font-family: inherit;
-    text-transform: uppercase; font-size: 10px; letter-spacing: .6px; }
-  .scroll-x { overflow-x: auto; }
-  .clip { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-  .clip.open { -webkit-line-clamp: unset; }
-  .drop-hint { border: 1px dashed var(--line); border-radius: var(--radius); padding: 14px; color: var(--muted); text-align: center; }
-  body.dragging .drop-hint { border-color: var(--accent); color: var(--accent); }
-  .roots { display: grid; gap: 6px; font-size: 11px; }
-  .root-row { display: flex; gap: 6px; align-items: center; }
-  .root-row code { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
-</style>
+<!-- Inline so the tab has a mark without a round trip, and without a 404. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%235551d6'/%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.2' stroke-linejoin='round'%3E%3Crect x='3.4' y='4.2' width='9.2' height='7.6' rx='.9'/%3E%3Cpath d='M5.9 4.2v7.6M10.1 4.2v7.6M3.4 8h9.2'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preload" href="/static/fonts/ibm-plex-sans-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/ibm-plex-mono-latin-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-<header>
-  <h1>WanGP <span>Video Browser</span></h1>
-  <div class="tabs">
-    <button class="tab active" data-view="preview">Preview</button>
-    <button class="tab" data-view="compare">Compare <span id="cmpCount">(0)</span></button>
-    <button class="tab" data-view="folders">Folders</button>
-  </div>
+
+<!-- Icon set, drawn on a 16px grid at a 1.4px stroke so the weight matches the type. -->
+<svg width="0" height="0" aria-hidden="true" focusable="false" class="sprite">
+  <defs>
+    <g id="i-play"><path d="M5.2 3.3 12.9 8l-7.7 4.7z" fill="currentColor" stroke="none"/></g>
+    <g id="i-pause"><path d="M6.1 3.6v8.8M9.9 3.6v8.8" stroke-width="1.9"/></g>
+    <g id="i-start"><path d="M4.2 3.6v8.8"/><path d="M12.6 4.1 6.6 8l6 3.9z" fill="currentColor" stroke-linejoin="round"/></g>
+    <g id="i-volume"><path d="M8.4 3.4 5.4 6H3.3v4h2.1l3 2.6z" stroke-linejoin="round"/><path d="M10.8 6.3a2.4 2.4 0 0 1 0 3.4"/><path d="M12.6 4.7a5 5 0 0 1 0 6.6"/></g>
+    <g id="i-mute"><path d="M8.4 3.4 5.4 6H3.3v4h2.1l3 2.6z" stroke-linejoin="round"/><path d="M10.8 6.6 13.6 9.4M13.6 6.6l-2.8 2.8"/></g>
+    <g id="i-expand"><path d="M6.1 2.9H2.9V6.1M9.9 2.9h3.2V6.1M13.1 9.9v3.2H9.9M2.9 9.9v3.2h3.2"/></g>
+    <g id="i-close"><path d="M4.2 4.2 11.8 11.8M11.8 4.2 4.2 11.8"/></g>
+    <g id="i-refresh"><path d="M12.9 8a4.9 4.9 0 1 1-1.6-3.6"/><path d="M13.1 2.3v2.9h-2.9"/></g>
+    <g id="i-sun"><circle cx="8" cy="8" r="2.7"/><path d="M8 1.4v1.4M8 13.2v1.4M1.4 8h1.4M13.2 8h1.4M3.3 3.3l1 1M11.7 11.7l1 1M12.7 3.3l-1 1M4.3 11.7l-1 1"/></g>
+    <g id="i-moon"><path d="M13.2 9.7A5.7 5.7 0 0 1 6.3 2.8 5.7 5.7 0 1 0 13.2 9.7z" stroke-linejoin="round"/></g>
+    <g id="i-down"><path d="M4.3 6.3 8 10l3.7-3.7"/></g>
+    <g id="i-left"><path d="M9.7 3.4 5.1 8l4.6 4.6"/></g>
+    <g id="i-link"><path d="M6.7 9.3a2.6 2.6 0 0 0 3.7 0l2-2a2.6 2.6 0 1 0-3.7-3.7l-.8.8"/><path d="M9.3 6.7a2.6 2.6 0 0 0-3.7 0l-2 2a2.6 2.6 0 1 0 3.7 3.7l.8-.8"/></g>
+    <g id="i-copy"><path d="M6.1 6.1h6.4v6.4H6.1z" stroke-linejoin="round"/><path d="M10 6.1V4.2a.7.7 0 0 0-.7-.7H4.2a.7.7 0 0 0-.7.7v5.1a.7.7 0 0 0 .7.7h1.9"/></g>
+    <g id="i-loop"><path d="M3.4 7.2V6.3a2 2 0 0 1 2-2h7.2"/><path d="M10.9 2.5 12.9 4.3 10.9 6.1"/><path d="M12.6 8.8v.9a2 2 0 0 1-2 2H3.4"/><path d="M5.1 9.9 3.1 11.7l2 1.8"/></g>
+    <g id="i-loop-off"><path d="M3.4 7.2V6.3a2 2 0 0 1 2-2h7.2"/><path d="M10.9 2.5 12.9 4.3 10.9 6.1"/><path d="M12.6 8.8v.9a2 2 0 0 1-2 2H3.4"/><path d="M5.1 9.9 3.1 11.7l2 1.8"/><path d="M2.6 2.6 13.4 13.4" stroke-width="1.7"/></g>
+    <g id="i-search"><circle cx="7.2" cy="7.2" r="3.9"/><path d="M10.1 10.1 13.3 13.3"/></g>
+    <g id="i-plus"><path d="M8 3.9v8.2M3.9 8h8.2"/></g>
+    <g id="i-check"><path d="M3.6 8.4 6.5 11.3 12.4 4.9"/></g>
+    <g id="i-folder"><path d="M2.6 11.9V4.1a.8.8 0 0 1 .8-.8h2.4l1.3 1.7h5.5a.8.8 0 0 1 .8.8v6.1a.8.8 0 0 1-.8.8H3.4a.8.8 0 0 1-.8-.8z" stroke-linejoin="round"/></g>
+    <g id="i-film"><rect x="2.4" y="3.3" width="11.2" height="9.4" rx="1.1"/><path d="M5.4 3.3v9.4M10.6 3.3v9.4M2.4 8h11.2"/></g>
+    <g id="i-compare"><rect x="2.4" y="3.6" width="5" height="8.8" rx=".9"/><path d="M8.6 3.6h4.1a.9.9 0 0 1 .9.9v7a.9.9 0 0 1-.9.9H8.6" stroke-dasharray="2.4 1.7"/></g>
+    <g id="i-panel"><rect x="2.4" y="3.1" width="11.2" height="9.8" rx="1.1"/><path d="M6.6 3.1v9.8"/></g>
+    <g id="i-image"><rect x="2.4" y="3.3" width="11.2" height="9.4" rx="1.1"/><path d="m2.9 11.2 3-3.1 2.2 2.1 2.4-2.6 2.6 2.7"/><circle cx="6" cy="6.2" r="1"/></g>
+    <g id="i-drop"><path d="M8 2.9v6.8"/><path d="M5.3 7 8 9.7 10.7 7"/><path d="M3.1 11.4v.9a.8.8 0 0 0 .8.8h8.2a.8.8 0 0 0 .8-.8v-.9"/></g>
+    <g id="i-wipe"><rect x="2.4" y="3.6" width="11.2" height="8.8" rx="1"/><path d="M8 3.6v8.8" stroke-width="1.8"/><path d="M5.6 8h-1.7M4.6 6.9 3.4 8l1.2 1.1M10.4 8h1.7M11.4 6.9 12.6 8l-1.2 1.1"/></g>
+    <g id="i-blink"><rect x="2.4" y="3.6" width="11.2" height="8.8" rx="1"/><path d="M5.8 6.2 4 8l1.8 1.8M10.2 6.2 12 8l-1.8 1.8"/></g>
+  </defs>
+</svg>
+
+<header id="topbar">
+  <a class="wordmark" href="/">
+    <span class="mark" aria-hidden="true"><svg viewBox="0 0 16 16" class="ic"><use href="#i-film"/></svg></span>
+    <span class="wordmark-text">WanGP <b>Video&nbsp;Browser</b></span>
+  </a>
+
+  <button id="railToggle" class="ghost ic-btn only-desktop" aria-label="Collapse the library panel" title="Collapse library">
+    <svg viewBox="0 0 16 16" class="ic"><use href="#i-panel"/></svg>
+  </button>
+
+  <nav class="tabs only-desktop" role="tablist" aria-label="Views">
+    <button class="tab" role="tab" id="tab-preview" aria-controls="view-preview" data-view="preview" aria-selected="true">Preview</button>
+    <button class="tab" role="tab" id="tab-compare" aria-controls="view-compare" data-view="compare" aria-selected="false">Compare<span class="tab-count" id="cmpCount" hidden>0</span></button>
+    <button class="tab" role="tab" id="tab-folders" aria-controls="view-folders" data-view="folders" aria-selected="false">Folders</button>
+  </nav>
+
   <div class="spacer"></div>
-  <span class="status" id="status">loading…</span>
-  <button id="themeToggle" class="icon" title="Switch between light and dark">◐</button>
-  <button id="rescan" class="icon" title="Rescan folders">⟳</button>
+  <span class="status" id="status" role="status">Loading library…</span>
+  <button id="themeToggle" class="ghost ic-btn" aria-label="Switch colour theme" title="Switch theme">
+    <svg viewBox="0 0 16 16" class="ic when-light"><use href="#i-moon"/></svg>
+    <svg viewBox="0 0 16 16" class="ic when-dark"><use href="#i-sun"/></svg>
+  </button>
+  <button id="rescan" class="ghost ic-btn" aria-label="Rescan folders" title="Rescan folders">
+    <svg viewBox="0 0 16 16" class="ic"><use href="#i-refresh"/></svg>
+  </button>
 </header>
 
 <main>
-  <aside id="sidebar">
+  <aside id="sidebar" aria-label="Library">
     <div class="filters">
-      <input type="search" id="search" placeholder="Search prompt, seed, model, filename…">
-      <div class="row">
-        <select id="sort" title="Sort">
-          <option value="mtime">Newest first</option>
-          <option value="mtime_asc">Oldest first</option>
-          <option value="name">Name</option>
-          <option value="size">Largest</option>
-          <option value="duration">Longest</option>
-          <option value="gentime">Slowest to generate</option>
-        </select>
-        <select id="modelFilter" title="Model"><option value="">All models</option></select>
+      <div class="field">
+        <svg viewBox="0 0 16 16" class="ic field-ic" aria-hidden="true"><use href="#i-search"/></svg>
+        <input type="search" id="search" placeholder="Search prompt, seed, model, filename" aria-label="Search the library">
       </div>
-      <div class="row">
-        <button id="clearPicks" style="flex:1">Clear compare</button>
-        <button id="pickVisible" style="flex:1">Compare top 2</button>
+      <div class="filter-row">
+        <div class="select">
+          <select id="sort" aria-label="Sort order">
+            <option value="mtime">Newest first</option>
+            <option value="mtime_asc">Oldest first</option>
+            <option value="name">Name</option>
+            <option value="size">Largest</option>
+            <option value="duration">Longest</option>
+            <option value="gentime">Slowest to generate</option>
+          </select>
+          <svg viewBox="0 0 16 16" class="ic" aria-hidden="true"><use href="#i-down"/></svg>
+        </div>
+        <div class="select">
+          <select id="modelFilter" aria-label="Filter by model"><option value="">All models</option></select>
+          <svg viewBox="0 0 16 16" class="ic" aria-hidden="true"><use href="#i-down"/></svg>
+        </div>
       </div>
     </div>
-    <div id="list"></div>
+    <div id="list" role="list"></div>
+    <div id="tray" hidden>
+      <span class="tray-count"><b id="trayCount">0</b> picked</span>
+      <button id="pickVisible" class="ghost sm">Top 2</button>
+      <button id="clearPicks" class="ghost sm">Clear</button>
+      <button id="goCompare" class="accent sm">Compare</button>
+    </div>
+    <div id="resizer" role="separator" aria-orientation="vertical" aria-label="Resize the library panel" tabindex="0"></div>
   </aside>
 
   <section id="content">
-    <div class="view active" id="view-preview"></div>
-    <div class="view" id="view-compare"></div>
-    <div class="view" id="view-folders"></div>
+    <button id="sheetBack" class="sheet-back only-mobile" aria-label="Back to library">
+      <svg viewBox="0 0 16 16" class="ic"><use href="#i-left"/></svg><span>Library</span>
+    </button>
+    <div class="view" id="view-preview" role="tabpanel" aria-labelledby="tab-preview" tabindex="0"></div>
+    <div class="view" id="view-compare" role="tabpanel" aria-labelledby="tab-compare" tabindex="0"></div>
+    <div class="view" id="view-folders" role="tabpanel" aria-labelledby="tab-folders" tabindex="0"></div>
   </section>
 </main>
 
+<nav id="tabbar" class="only-mobile" role="tablist" aria-label="Views">
+  <button class="tabbar-btn" role="tab" aria-controls="view-preview" data-view="preview" aria-selected="true">
+    <svg viewBox="0 0 16 16" class="ic"><use href="#i-film"/></svg><span>Library</span>
+  </button>
+  <button class="tabbar-btn" role="tab" aria-controls="view-compare" data-view="compare" aria-selected="false">
+    <svg viewBox="0 0 16 16" class="ic"><use href="#i-compare"/></svg><span>Compare</span>
+    <i class="dot" id="cmpDot" hidden></i>
+  </button>
+  <button class="tabbar-btn" role="tab" aria-controls="view-folders" data-view="folders" aria-selected="false">
+    <svg viewBox="0 0 16 16" class="ic"><use href="#i-folder"/></svg><span>Folders</span>
+  </button>
+</nav>
+
+<div id="dropveil" aria-hidden="true">
+  <div class="dropveil-card">
+    <svg viewBox="0 0 16 16" class="ic"><use href="#i-drop"/></svg>
+    <span>Drop video files to compare them</span>
+  </div>
+</div>
+
 <input type="file" id="filePicker" accept="video/*" multiple hidden>
-
-<script>
-"use strict";
-
-/* ------------------------------------------------------------------ state */
-const state = {
-  videos: [],
-  roots: [],
-  ffmpeg: false,
-  activeId: null,
-  picks: [],          // ids (or local:* ids) in compare order, max 4
-  external: new Map(), // id -> {id, name, url, meta, probe, external:true}
-  view: "preview",
-  loop: true,
-  unmuted: null,
-  rate: 1,
-  cmpMode: "side",   // side | wipe | blink
-  wipe: 50,          // wipe divider position, percent
-  blinkMs: 0,        // 0 = manual swap only
-  blinkFlip: false,  // which clip the blink stack is currently showing
-};
-
-const MAX_PICKS = 4;
-
-/* WanGP settings, grouped for display. Anything unknown lands in "Other". */
-const GROUPS = [
-  ["Model", ["type", "model_type", "model_filename", "settings_version"]],
-  ["Generation", ["seed", "resolution", "video_length", "batch_size", "num_inference_steps",
-    "guidance_scale", "guidance2_scale", "guidance3_scale", "embedded_guidance_scale", "guidance_phases",
-    "audio_guidance_scale", "flow_shift", "sample_solver", "NAG_scale", "NAG_tau", "NAG_alpha",
-    "repeat_generation", "multi_prompts_gen_type", "RIFLEx_setting", "denoising_strength"]],
-  ["Speed / cache", ["skip_steps_cache_type", "skip_steps_multiplier", "skip_steps_start_step_perc",
-    "override_profile", "override_attention"]],
-  ["LoRAs", ["activated_loras", "loras_multipliers"]],
-  ["Sliding window", ["sliding_window_size", "sliding_window_overlap", "sliding_window_color_correction_strength",
-    "sliding_window_overlap_noise", "sliding_window_discard_last_frames", "sliding_window_trim_first_frames"]],
-  ["Prompt / inputs", ["prompt", "alt_prompt", "negative_prompt", "image_prompt_type", "video_prompt_type",
-    "audio_prompt_type", "keep_frames_video_guide", "mask_expand", "replace_voice_method", "image_refs_relative_size"]],
-  ["Post-processing", ["temporal_upsampling", "spatial_upsampling", "film_grain_intensity", "film_grain_saturation",
-    "postprocess_audio", "video_quality"]],
-  ["Output", ["output_filename", "config", "client_id", "image_mode", "generation_time",
-    "creation_date", "creation_timestamp"]],
-];
-const GROUPED_KEYS = new Set(GROUPS.flatMap(([, keys]) => keys));
-
-/* ---------------------------------------------------------------- helpers */
-const $ = (sel, root = document) => root.querySelector(sel);
-const el = (tag, props = {}, children = []) => {
-  const node = Object.assign(document.createElement(tag), props);
-  for (const child of [].concat(children)) {
-    if (child != null) node.append(child.nodeType ? child : document.createTextNode(child));
-  }
-  return node;
-};
-
-const fmtSize = (bytes) => {
-  if (!bytes && bytes !== 0) return "—";
-  const units = ["B", "KB", "MB", "GB"];
-  let value = bytes, i = 0;
-  while (value >= 1024 && i < units.length - 1) { value /= 1024; i++; }
-  return `${value.toFixed(value < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
-};
-const fmtTime = (seconds) => {
-  if (!isFinite(seconds) || seconds < 0) seconds = 0;
-  const m = Math.floor(seconds / 60), s = seconds % 60;
-  return `${m}:${s.toFixed(2).padStart(5, "0")}`;
-};
-const fmtDuration = (seconds) => (seconds ? `${seconds.toFixed(2)}s` : "—");
-const fmtValue = (value) => {
-  if (value === null || value === undefined || value === "") return "—";
-  if (Array.isArray(value)) return value.length ? value.join(", ") : "—";
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
-};
-
-const getVideo = (id) => state.external.get(id) || state.videos.find((v) => v.id === id) || null;
-const mediaUrl = (video) => (video.external ? video.url : `/media/${video.id}`);
-/* Without a poster a <video preload="metadata"> paints solid black until playback
-   starts. The server already renders thumbnails, so reuse them as the still. */
-const posterUrl = (video) => (video.external ? "" : `/thumb/${video.id}`);
-
-/* WanGP prefixes prompts with control tags and a "<something>_description:" label
-   (e.g. "[/duration=5s] integrated_multimodal_description: [Shot 1] real text").
-   Strip that boilerplate so list titles show the part that actually differs. */
-const cleanPrompt = (text) => String(text || "")
-  .replace(/^\s*(?:\[[^\]]*\]\s*)+/, "")
-  .replace(/^\s*[\w-]*description\s*:\s*/i, "")
-  .replace(/^\s*(?:\[[^\]]*\]\s*)+/, "")
-  .trim();
-const shortName = (video) => {
-  const prompt = video.meta && video.meta.prompt ? cleanPrompt(video.meta.prompt) : "";
-  return prompt ? prompt.slice(0, 90) : video.name;
-};
-const modelOf = (video) => (video.meta && (video.meta.model_type || video.meta.type)) || "unknown";
-const durationOf = (video) => (video.probe && video.probe.duration) || 0;
-const fpsOf = (video) => (video.probe && video.probe.fps) || 16;
-
-/* ------------------------------------------------------------- data loading */
-async function load(url = "/api/videos", options) {
-  const response = await fetch(url, options);
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || response.statusText);
-  applyIndex(data);
-  return data;
-}
-
-function applyIndex(data) {
-  state.videos = data.videos || [];
-  state.roots = data.roots || [];
-  state.ffmpeg = !!data.ffmpeg;
-
-  // ?compare=<id>,<id>&mode=wipe reopens a specific comparison in a specific
-  // mode (see the transport's Link button).
-  const params = new URLSearchParams(location.search);
-  const requested = params.get("compare");
-  if (requested && !state.picks.length) {
-    state.picks = requested.split(",").filter((id) => id && getVideo(id)).slice(0, MAX_PICKS);
-    const mode = params.get("mode");
-    if (["side", "wipe", "blink"].includes(mode)) state.cmpMode = mode;
-    if (state.picks.length) setView("compare");
-  }
-  state.picks = state.picks.filter((id) => getVideo(id));
-  if (!getVideo(state.activeId)) state.activeId = state.videos.length ? state.videos[0].id : null;
-  $("#status").textContent = `${state.videos.length} video${state.videos.length === 1 ? "" : "s"} · ${state.roots.length} folder${state.roots.length === 1 ? "" : "s"}`;
-  renderModelFilter();
-  renderAll();
-}
-
-/* ------------------------------------------------------------------ sidebar */
-function renderModelFilter() {
-  const select = $("#modelFilter");
-  const previous = select.value;
-  const models = [...new Set(state.videos.map(modelOf))].sort();
-  select.replaceChildren(el("option", { value: "", textContent: "All models" }),
-    ...models.map((m) => el("option", { value: m, textContent: m })));
-  select.value = models.includes(previous) ? previous : "";
-}
-
-function visibleVideos() {
-  const query = $("#search").value.trim().toLowerCase();
-  const model = $("#modelFilter").value;
-  let list = state.videos.filter((video) => {
-    if (model && modelOf(video) !== model) return false;
-    if (!query) return true;
-    const haystack = [video.name, JSON.stringify(video.meta || {})].join(" ").toLowerCase();
-    return query.split(/\s+/).every((token) => haystack.includes(token));
-  });
-  const sort = $("#sort").value;
-  const by = {
-    mtime: (a, b) => b.mtime - a.mtime,
-    mtime_asc: (a, b) => a.mtime - b.mtime,
-    name: (a, b) => a.name.localeCompare(b.name),
-    size: (a, b) => b.size - a.size,
-    duration: (a, b) => durationOf(b) - durationOf(a),
-    gentime: (a, b) => ((b.meta || {}).generation_time || 0) - ((a.meta || {}).generation_time || 0),
-  }[sort];
-  return list.sort(by);
-}
-
-function renderList() {
-  const list = $("#list");
-  const videos = visibleVideos();
-  if (!videos.length) {
-    list.replaceChildren(el("div", { className: "empty" },
-      state.videos.length ? "No videos match the filter." : "No videos indexed yet. Add an outputs folder in the Folders tab."));
-    return;
-  }
-  list.replaceChildren(...videos.map((video) => {
-    const pickIndex = state.picks.indexOf(video.id);
-    const meta = video.meta || {};
-    const thumb = el("div", { className: "thumb" }, state.ffmpeg ? null : "no preview");
-    if (state.ffmpeg) {
-      const img = el("img", { loading: "lazy", src: `/thumb/${video.id}`, alt: "" });
-      img.onerror = () => { thumb.replaceChildren(document.createTextNode("no preview")); };
-      thumb.append(img);
-    }
-    const pick = el("button", {
-      className: `pick${pickIndex >= 0 ? " on" : ""}`,
-      textContent: pickIndex >= 0 ? `#${pickIndex + 1}` : "+",
-      title: pickIndex >= 0 ? "Remove from compare" : "Add to compare",
-      onclick: (event) => { event.stopPropagation(); togglePick(video.id); },
-    });
-    // Chips carry what actually varies between runs; the model rarely does, so
-    // it drops to the footer next to date and size.
-    const badges = el("div", { className: "badges" }, [
-      meta.seed != null ? el("span", { className: "badge seed", textContent: `seed ${meta.seed}` }) : null,
-      el("span", { className: "badge", textContent: meta.resolution || (video.probe && video.probe.width ? `${video.probe.width}x${video.probe.height}` : "?") }),
-      el("span", { className: "badge", textContent: fmtDuration(durationOf(video)) }),
-      meta.num_inference_steps != null ? el("span", { className: "badge", textContent: `${meta.num_inference_steps} steps` }) : null,
-    ]);
-    const when = new Date(video.mtime * 1000).toLocaleString([], {
-      month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit",
-    });
-    const foot = el("div", { className: "foot" }, [
-      el("span", { className: "model", textContent: modelOf(video), title: modelOf(video) }),
-      el("span", { textContent: `${when} · ${fmtSize(video.size)}` }),
-    ]);
-    const card = el("div", {
-      className: `card${video.id === state.activeId ? " active" : ""}${pickIndex >= 0 ? " picked" : ""}`,
-      onclick: () => { state.activeId = video.id; setView("preview"); renderAll(); },
-      ondblclick: () => togglePick(video.id),
-    }, [thumb, el("div", { className: "body" }, [
-      el("div", { style: "display:flex;gap:6px;align-items:flex-start" }, [
-        el("div", { className: "title", textContent: shortName(video) }), pick,
-      ]),
-      badges,
-      foot,
-    ])]);
-    return card;
-  }));
-}
-
-function togglePick(id) {
-  const index = state.picks.indexOf(id);
-  if (index >= 0) state.picks.splice(index, 1);
-  else if (state.picks.length < MAX_PICKS) state.picks.push(id);
-  else return flash(`Compare holds at most ${MAX_PICKS} videos.`);
-  if (state.picks.length && state.view !== "compare") setView("compare");
-  renderAll();
-}
-
-function flash(message) {
-  const status = $("#status");
-  const previous = status.textContent;
-  status.textContent = message;
-  setTimeout(() => { status.textContent = previous; }, 2500);
-}
-
-/* ------------------------------------------------------------------ preview */
-function renderPreview() {
-  const view = $("#view-preview");
-  const video = getVideo(state.activeId);
-  if (!video) {
-    view.replaceChildren(el("div", { className: "empty" }, "Select a video from the list."));
-    return;
-  }
-  const meta = video.meta || {};
-  const probe = video.probe || {};
-  // Frames/resolution also appear under "Generation" - keep this card to the
-  // facts that only exist at the file level. The filename is too long for a
-  // two-column row, so it gets its own full-width line.
-  const fileRows = [
-    ["Folder", video.external ? "(dropped file)" : (video.path || "").slice(0, -(video.name.length + 1))],
-    ["Size", fmtSize(video.size)],
-    ["Duration", `${fmtDuration(probe.duration)}${probe.fps ? ` @ ${probe.fps} fps` : ""}`],
-    ["Stream", [probe.codec, probe.width && `${probe.width}x${probe.height}`,
-      probe.bitrate && `${Math.round(probe.bitrate / 1000)} kbps`,
-      probe.has_audio ? `audio: ${probe.audio_codec}` : "no audio"].filter(Boolean).join(" · ") || "—"],
-  ];
-
-  // Full-width sections lead and trail; the compact cards flow between them so
-  // the grid never leaves a hole beside a lone card.
-  const sections = [];
-
-  if (meta.prompt) {
-    const body = el("div", { className: "prompt clip", textContent: meta.prompt });
-    sections.push(el("div", { className: "section span-all" }, [
-      el("h3", {}, ["Prompt",
-        el("button", { textContent: "Expand", onclick: (e) => { body.classList.toggle("open"); e.target.textContent = body.classList.contains("open") ? "Collapse" : "Expand"; } }),
-        el("button", { textContent: "Copy", onclick: () => copy(meta.prompt) })]),
-      body,
-    ]));
-  }
-
-  sections.push(el("div", { className: "section" }, [
-    el("h3", {}, ["File", el("button", { textContent: "Copy path", onclick: () => copy(video.path || video.name) })]),
-    el("div", { className: "filename", textContent: video.name }),
-    el("div", { className: "kv" }, fileRows.flatMap(([key, value]) =>
-      [el("div", { textContent: key }), el("div", { textContent: fmtValue(value) })])),
-  ]));
-
-  if (Object.keys(meta).length) {
-    for (const [title, keys] of GROUPS) {
-      const rows = keys.filter((key) => key !== "prompt" && meta[key] !== undefined && meta[key] !== "" &&
-        !(Array.isArray(meta[key]) && !meta[key].length));
-      if (!rows.length) continue;
-      sections.push(el("div", { className: "section" }, [
-        el("h3", {}, title),
-        el("div", { className: "kv" }, rows.flatMap((key) =>
-          [el("div", { textContent: key }), el("div", { textContent: fmtValue(meta[key]) })])),
-      ]));
-    }
-    const other = Object.keys(meta).filter((key) => !GROUPED_KEYS.has(key)).sort();
-    if (other.length) {
-      sections.push(el("div", { className: "section" }, [
-        el("h3", {}, "Other"),
-        el("div", { className: "kv" }, other.flatMap((key) =>
-          [el("div", { textContent: key }), el("div", { textContent: fmtValue(meta[key]) })])),
-      ]));
-    }
-    sections.push(el("div", { className: "section span-all" }, [
-      el("h3", {}, ["Raw metadata", el("button", { textContent: "Copy JSON", onclick: () => copy(JSON.stringify(meta, null, 2)) })]),
-      el("div", { className: "prompt clip", style: "font-family:var(--mono);font-size:11px", textContent: JSON.stringify(meta, null, 2) }),
-    ]));
-  } else {
-    sections.push(el("div", { className: "section" }, [
-      el("h3", {}, "Metadata"),
-      el("div", { className: "prompt" }, "No WanGP metadata embedded in this file."),
-    ]));
-  }
-
-  const player = el("video", { controls: true, loop: state.loop, preload: "metadata", poster: posterUrl(video), src: mediaUrl(video) });
-  const pickIndex = state.picks.indexOf(video.id);
-  view.replaceChildren(el("div", { className: "preview-wrap" }, [
-    el("div", { className: "preview-stage" }, [
-      el("div", { className: "video-box" }, player),
-      el("div", { className: "stage-actions" }, [
-        el("button", {
-          className: pickIndex >= 0 ? "primary" : "",
-          textContent: pickIndex >= 0 ? `In compare (#${pickIndex + 1}) — remove` : "Add to compare",
-          onclick: () => togglePick(video.id),
-        }),
-        el("button", { textContent: "Load file to compare…", onclick: () => $("#filePicker").click() }),
-      ]),
-    ]),
-    el("div", { className: "meta-panel" }, sections),
-  ]));
-}
-
-/* ------------------------------------------------------------------ compare */
-let players = [];
-let timecodes = [];
-let blinkStack = null;
-let blinkTimer = null;
-
-function stopBlink() {
-  if (blinkTimer) clearInterval(blinkTimer);
-  blinkTimer = null;
-  blinkStack = null;
-}
-/* While flickering, the only thing the eye can't infer is which clip it is
-   looking at - so the active tag is always highlighted. */
-function syncBlinkTags() {
-  if (!blinkStack) return;
-  blinkStack.classList.toggle("flip", state.blinkFlip);
-  const [tagA, tagB] = blinkStack.querySelectorAll(".tag");
-  if (tagA) tagA.classList.toggle("live", !state.blinkFlip);
-  if (tagB) tagB.classList.toggle("live", state.blinkFlip);
-}
-function toggleBlink() {
-  state.blinkFlip = !state.blinkFlip;
-  syncBlinkTags();
-}
-
-/* Side-by-side is juxtaposition; wipe and blink are superposition - they put both
-   clips in the same screen position, which is what makes small differences pop. */
-function buildSideBySide(videos) {
-  const cells = videos.map((video, index) => {
-    const player = el("video", { preload: "metadata", muted: true, playsInline: true, poster: posterUrl(video), src: mediaUrl(video) });
-    players.push(player);
-    const readout = el("span", { className: "timecode", textContent: "0:00.00 · f0" });
-    timecodes.push({ node: readout, fps: fpsOf(video) });
-    const audioButton = el("button", {
-      className: `icon toggle${state.unmuted === index ? " on" : ""}`,
-      textContent: state.unmuted === index ? "🔊" : "🔇",
-      title: "Solo audio",
-      onclick: () => { state.unmuted = state.unmuted === index ? null : index; applyMute(); },
-    });
-    return el("div", { className: "cmp-cell" }, [
-      el("header", { style: "display:flex;align-items:center" }, [
-        el("span", { className: "idx", textContent: `#${index + 1}` }),
-        el("span", { className: "label", textContent: shortName(video), title: video.name }),
-        audioButton,
-        el("button", { className: "icon", textContent: "✕", title: "Remove", onclick: () => togglePick(video.id) }),
-      ]),
-      el("div", { className: "cmp-media" }, [player, readout]),
-      el("div", { className: "badges", style: "padding:6px 8px" }, [
-        el("span", { className: "badge seed", textContent: `seed ${(video.meta || {}).seed ?? "—"}` }),
-        el("span", { className: "badge", textContent: (video.meta || {}).resolution || "—" }),
-        el("span", { className: "badge", textContent: fmtDuration(durationOf(video)) }),
-        el("span", { className: "badge", textContent: `${(video.meta || {}).num_inference_steps ?? "—"} steps` }),
-        el("span", { className: "badge model", textContent: modelOf(video) }),
-      ]),
-    ]);
-  });
-  return el("div", { className: `cmp-grid n${videos.length}` }, cells);
-}
-
-function buildStack(videos) {
-  const [first, second] = videos;
-  // players[0] stays the master clock regardless of DOM stacking order.
-  const over = el("video", { className: "over", preload: "metadata", muted: true, playsInline: true, poster: posterUrl(first), src: mediaUrl(first) });
-  const under = el("video", { className: "under", preload: "metadata", muted: true, playsInline: true, poster: posterUrl(second), src: mediaUrl(second) });
-  players.push(over, under);
-
-  const readout = el("span", { className: "timecode", textContent: "0:00.00 · f0" });
-  timecodes.push({ node: readout, fps: fpsOf(first) });
-
-  const tagA = el("span", { className: "tag a", textContent: `#1 ${(first.meta || {}).seed ?? ""}`.trim() });
-  const tagB = el("span", { className: "tag b", textContent: `#2 ${(second.meta || {}).seed ?? ""}`.trim() });
-  const stack = el("div", { className: `stack${state.cmpMode === "blink" ? " blink" : ""}` },
-    [under, over, tagA, tagB, readout]);
-  stack.style.setProperty("--wipe", `${state.wipe}%`);
-
-  if (state.cmpMode === "wipe") {
-    const handle = el("div", { className: "wipe-handle" });
-    stack.append(handle);
-    const moveTo = (clientX) => {
-      const rect = stack.getBoundingClientRect();
-      state.wipe = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-      stack.style.setProperty("--wipe", `${state.wipe}%`);
-    };
-    stack.addEventListener("pointerdown", (event) => {
-      stack.setPointerCapture(event.pointerId);
-      moveTo(event.clientX);
-      const onMove = (moveEvent) => moveTo(moveEvent.clientX);
-      const onUp = () => {
-        stack.removeEventListener("pointermove", onMove);
-        stack.removeEventListener("pointerup", onUp);
-      };
-      stack.addEventListener("pointermove", onMove);
-      stack.addEventListener("pointerup", onUp);
-    });
-  } else {
-    blinkStack = stack;
-    syncBlinkTags();
-    if (state.blinkMs) {
-      blinkTimer = setInterval(() => { state.blinkFlip = !state.blinkFlip; syncBlinkTags(); }, state.blinkMs);
-    }
-  }
-  return stack;
-}
-
-function renderCompare() {
-  const view = $("#view-compare");
-  const videos = state.picks.map(getVideo).filter(Boolean);
-  players = [];
-  timecodes = [];
-  stopBlink();
-  if (!videos.length) {
-    view.replaceChildren(el("div", { className: "empty" }, [
-      el("p", {}, "Pick up to 4 videos with the + button in the list (or double-click a card) to compare them side by side."),
-      el("p", { style: "font-size:12px" }, "With exactly 2 picked you also get wipe and blink modes, which overlay the clips in the same position."),
-      el("div", { className: "drop-hint" }, "…or drop video files here / use “Load file to compare…”"),
-    ]));
-    return;
-  }
-
-  // Wipe and blink overlay two clips - they have no meaning for other counts.
-  const stackable = videos.length === 2;
-  if (!stackable) state.cmpMode = "side";
-  const stage = state.cmpMode === "side" ? buildSideBySide(videos) : buildStack(videos);
-
-  const modeSwitch = el("div", { className: "modes" }, [
-    ["side", "Side by side"], ["wipe", "Wipe"], ["blink", "Blink"],
-  ].map(([mode, label]) => el("button", {
-    className: state.cmpMode === mode ? "on" : "",
-    textContent: label,
-    disabled: mode !== "side" && !stackable,
-    title: mode !== "side" && !stackable ? "Pick exactly 2 videos to use this mode" : `${label} view`,
-    onclick: () => { state.cmpMode = mode; renderCompare(); },
-  })));
-
-  const scrubber = el("input", { type: "range", min: 0, max: 1000, value: 0, step: 1 });
-  const timeLabel = el("span", { className: "time", textContent: "0:00.00 / 0:00.00" });
-  const playButton = el("button", { className: "primary", textContent: "▶ Play all", style: "min-width:100px" });
-
-  scrubber.oninput = () => seekAll((scrubber.value / 1000) * maxDuration());
-  playButton.onclick = () => (players[0] && !players[0].paused ? pauseAll() : playAll());
-
-  const blinkControls = state.cmpMode === "blink" ? [
-    el("button", { textContent: "Swap", title: "Swap which clip is showing (B)", onclick: () => toggleBlink() }),
-    el("select", {
-      title: "Auto-flicker speed",
-      style: "width:auto",
-      onchange: (event) => { state.blinkMs = parseInt(event.target.value, 10); renderCompare(); },
-    }, [[0, "Manual"], [1000, "1s"], [500, "0.5s"], [200, "0.2s"]].map(([ms, label]) =>
-      el("option", { value: ms, textContent: label, selected: ms === state.blinkMs }))),
-  ] : [];
-
-  const transport = el("div", { className: "transport" }, [
-    modeSwitch,
-    playButton,
-    ...blinkControls,
-    el("button", { textContent: "⏮", title: "Restart", onclick: () => seekAll(0) }),
-    el("button", { textContent: "−1f", title: "Step back one frame", onclick: () => stepFrames(-1) }),
-    el("button", { textContent: "+1f", title: "Step forward one frame", onclick: () => stepFrames(1) }),
-    scrubber, timeLabel,
-    el("select", {
-      title: "Playback speed",
-      style: "width:auto",
-      onchange: (event) => { state.rate = parseFloat(event.target.value); players.forEach((p) => { p.playbackRate = state.rate; }); },
-    }, [0.25, 0.5, 1, 1.5, 2].map((rate) => el("option", { value: rate, textContent: `${rate}x`, selected: rate === state.rate }))),
-    el("button", {
-      className: `toggle${state.loop ? " on" : ""}`, textContent: "Loop",
-      onclick: (event) => { state.loop = !state.loop; event.target.classList.toggle("on", state.loop); },
-    }),
-    el("button", {
-      textContent: "Link", title: "Copy a link that reopens this exact comparison",
-      onclick: () => copy(compareLink()),
-    }),
-  ]);
-
-  view.replaceChildren(stage, transport, buildDiffSection(videos));
-
-  players.forEach((player) => {
-    player.playbackRate = state.rate;
-    player.onended = () => { if (state.loop) { seekAll(0); playAll(); } else pauseAll(); };
-  });
-  applyMute();
-
-  // Keep the transport in sync with whatever the videos are actually doing.
-  const tick = () => {
-    if (!players.length || !document.body.contains(scrubber)) return;
-    const master = players[0];
-    const total = maxDuration();
-    scrubber.value = total ? Math.round((master.currentTime / total) * 1000) : 0;
-    timeLabel.textContent = `${fmtTime(master.currentTime)} / ${fmtTime(total)}`;
-    playButton.textContent = master.paused ? "▶ Play all" : "⏸ Pause all";
-    timecodes.forEach(({ node, fps }, index) => {
-      const time = (players[index] || master).currentTime;
-      node.textContent = `${fmtTime(time)} · f${Math.round(time * (fps || 16))}`;
-    });
-    for (const player of players.slice(1)) {
-      if (Math.abs(player.currentTime - master.currentTime) > 0.12 && player.duration > master.currentTime) {
-        player.currentTime = master.currentTime;
-      }
-    }
-    requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-}
-
-/* Only indexed videos have stable ids; dropped files can't be linked to. */
-const compareLink = () =>
-  `${location.origin}/?compare=${state.picks.filter((id) => !id.startsWith("local:")).join(",")}&mode=${state.cmpMode}`;
-
-/* Prefer what the elements report, but fall back to the ffprobe duration from the
-   index so the scrubber is usable before the browser has loaded any metadata. */
-function maxDuration() {
-  const fromPlayers = players.reduce((max, p) => Math.max(max, isFinite(p.duration) ? p.duration : 0), 0);
-  if (fromPlayers > 0) return fromPlayers;
-  return state.picks.map(getVideo).filter(Boolean).reduce((max, v) => Math.max(max, durationOf(v)), 0);
-}
-const applyMute = () => { players.forEach((p, i) => { p.muted = state.unmuted !== i; }); renderCompareBadges(); };
-function renderCompareBadges() {
-  document.querySelectorAll(".cmp-cell .toggle").forEach((button, index) => {
-    button.classList.toggle("on", state.unmuted === index);
-    button.textContent = state.unmuted === index ? "🔊" : "🔇";
-  });
-}
-function seekAll(time) {
-  players.forEach((player) => {
-    player.currentTime = Math.max(0, Math.min(time, (player.duration || time) - 0.001));
-  });
-}
-function playAll() { players.forEach((player) => player.play().catch(() => {})); }
-function pauseAll() { players.forEach((player) => player.pause()); }
-function stepFrames(delta) {
-  const videos = state.picks.map(getVideo).filter(Boolean);
-  const fps = fpsOf(videos[0] || {}) || 16;
-  pauseAll();
-  seekAll((players[0] ? players[0].currentTime : 0) + delta / fps);
-}
-
-/* ---------------------------------------------------------------- diff view */
-function buildDiffSection(videos) {
-  const onlyDiff = { value: true };
-  const table = el("table", { className: "diff" });
-  const wrap = el("div", { className: "scroll-x" }, table);
-
-  const build = () => {
-    const metas = videos.map((video) => video.meta || {});
-    const header = el("thead", {}, el("tr", {}, [
-      el("th", { textContent: "Setting" }),
-      ...videos.map((video, index) => el("th", { textContent: `#${index + 1} ${(video.meta || {}).seed ?? video.name.slice(0, 16)}` })),
-    ]));
-    const body = el("tbody");
-    let shown = 0;
-
-    const allKeys = new Set(metas.flatMap(Object.keys));
-    const ordered = [...GROUPS.map(([title, keys]) => [title, keys.filter((key) => allKeys.has(key))]),
-      ["Other", [...allKeys].filter((key) => !GROUPED_KEYS.has(key)).sort()]];
-
-    for (const [title, keys] of ordered) {
-      const rows = [];
-      for (const key of keys) {
-        const values = metas.map((meta) => fmtValue(meta[key]));
-        const differs = new Set(values).size > 1;
-        if (onlyDiff.value && !differs) continue;
-        shown++;
-        rows.push(el("tr", { className: differs ? "differs" : "" }, [
-          el("td", { className: "key", textContent: key }),
-          ...values.map((value) => el("td", {}, el("div", {
-            className: value.length > 160 ? "clip" : "",
-            textContent: value,
-            onclick: (event) => event.currentTarget.classList.toggle("open"),
-            title: value.length > 160 ? "Click to expand" : "",
-          }))),
-        ]));
-      }
-      if (rows.length) {
-        body.append(el("tr", { className: "group-head" }, el("td", { colSpan: videos.length + 1, textContent: title })));
-        body.append(...rows);
-      }
-    }
-    if (!shown) {
-      body.append(el("tr", {}, el("td", { colSpan: videos.length + 1, textContent: "Identical settings across all selected videos." })));
-    }
-    table.replaceChildren(header, body);
-  };
-  build();
-
-  const toggle = el("button", { className: "toggle on", textContent: "Differences only" });
-  toggle.onclick = () => { onlyDiff.value = !onlyDiff.value; toggle.classList.toggle("on", onlyDiff.value); build(); };
-
-  return el("div", { className: "section", style: "margin-top:12px" }, [
-    el("h3", {}, ["Settings diff", toggle]),
-    wrap,
-  ]);
-}
-
-/* ------------------------------------------------------------------ folders */
-function renderFolders() {
-  const input = el("input", { type: "text", placeholder: "/path/to/another/outputs", style: "flex:1" });
-  const add = async () => {
-    const path = input.value.trim();
-    if (!path) return;
-    try {
-      await load("/api/roots/add", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path }),
-      });
-      input.value = "";
-    } catch (error) { flash(String(error.message || error)); }
-  };
-  input.onkeydown = (event) => { if (event.key === "Enter") add(); };
-
-  $("#view-folders").replaceChildren(el("div", { style: "max-width:820px;display:grid;gap:12px" }, [
-    el("div", { className: "section" }, [
-      el("h3", {}, "Indexed folders"),
-      el("div", { className: "roots", style: "padding:10px 12px" }, state.roots.length
-        ? state.roots.map((root) => el("div", { className: "root-row" }, [
-            el("code", { textContent: root }),
-            el("button", {
-              textContent: "Remove", onclick: () => load("/api/roots/remove", {
-                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: root }),
-              }).catch((error) => flash(String(error))),
-            }),
-          ]))
-        : el("div", { textContent: "No folders indexed." })),
-    ]),
-    el("div", { className: "section" }, [
-      el("h3", {}, "Add an outputs folder"),
-      el("div", { style: "padding:10px 12px;display:flex;gap:8px" }, [input, el("button", { className: "primary", textContent: "Add", onclick: add })]),
-    ]),
-    el("div", { className: "section" }, [
-      el("h3", {}, "Compare an arbitrary video"),
-      el("div", { style: "padding:10px 12px;display:grid;gap:10px" }, [
-        el("div", { className: "drop-hint" }, "Drop video files anywhere in this window to add them to the compare tray."),
-        el("button", { textContent: "Load file to compare…", onclick: () => $("#filePicker").click() }),
-      ]),
-    ]),
-    el("div", { className: "section" }, [
-      el("h3", {}, "Notes"),
-      el("div", { className: "prompt" },
-        `Thumbnails: ${state.ffmpeg ? "enabled (ffmpeg found)" : "disabled (ffmpeg not found on PATH)"}\n` +
-        "Metadata is read from the MP4 (c)cmt atom that WanGP writes when 'metadata' output is enabled in its settings."),
-    ]),
-  ]));
-}
-
-/* --------------------------------------------- dropped / picked local files */
-const MARKER = [0xA9, 0x63, 0x6D, 0x74]; // "©cmt"
-
-async function readEmbeddedMetadata(file) {
-  // WanGP's JSON blob lives in the moov atom, which ffmpeg usually writes at the
-  // end of the file (and sometimes at the front). Scan both ends for the tag.
-  const span = Math.min(file.size, 8 * 1024 * 1024);
-  const chunks = [[0, span]];
-  if (file.size > span) chunks.push([file.size - span, file.size]);
-  for (const [start, end] of chunks) {
-    const bytes = new Uint8Array(await file.slice(start, end).arrayBuffer());
-    for (let i = 0; i + 24 < bytes.length; i++) {
-      if (bytes[i] !== MARKER[0] || bytes[i + 1] !== MARKER[1] || bytes[i + 2] !== MARKER[2] || bytes[i + 3] !== MARKER[3]) continue;
-      const view = new DataView(bytes.buffer, i + 4);
-      const dataSize = view.getUint32(0);
-      const type = String.fromCharCode(bytes[i + 8], bytes[i + 9], bytes[i + 10], bytes[i + 11]);
-      if (type !== "data" || dataSize < 17) continue;
-      const payload = bytes.slice(i + 20, Math.min(i + 4 + dataSize, bytes.length));
-      try {
-        const parsed = JSON.parse(new TextDecoder().decode(payload).replace(/\0+$/, "").trim());
-        if (parsed && typeof parsed === "object" && !parsed._wangp_metadata_reserved) return parsed;
-      } catch { /* keep scanning */ }
-    }
-  }
-  return {};
-}
-
-async function addLocalFiles(files) {
-  for (const file of [...files].slice(0, MAX_PICKS)) {
-    if (!file.type.startsWith("video/") && !/\.(mp4|mkv|webm|mov|m4v)$/i.test(file.name)) continue;
-    const id = `local:${file.name}:${file.size}`;
-    if (!state.external.has(id)) {
-      const meta = await readEmbeddedMetadata(file);
-      const entry = { id, name: file.name, url: URL.createObjectURL(file), size: file.size,
-        mtime: file.lastModified / 1000, meta, probe: {}, external: true, path: file.name };
-      // Fill duration/fps-ish info from the element itself.
-      const probeVideo = document.createElement("video");
-      probeVideo.preload = "metadata";
-      probeVideo.src = entry.url;
-      await new Promise((resolve) => { probeVideo.onloadedmetadata = resolve; probeVideo.onerror = resolve; });
-      entry.probe = { duration: probeVideo.duration || 0, width: probeVideo.videoWidth, height: probeVideo.videoHeight };
-      state.external.set(id, entry);
-    }
-    if (!state.picks.includes(id) && state.picks.length < MAX_PICKS) state.picks.push(id);
-  }
-  setView("compare");
-  renderAll();
-}
-
-/* ----------------------------------------------------------------- plumbing */
-function setView(view) {
-  state.view = view;
-  document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.view === view));
-  document.querySelectorAll(".view").forEach((node) => node.classList.toggle("active", node.id === `view-${view}`));
-}
-
-function renderAll() {
-  $("#cmpCount").textContent = `(${state.picks.length})`;
-  renderList();
-  if (state.view === "preview") renderPreview();
-  else if (state.view === "compare") renderCompare();
-  else renderFolders();
-}
-
-async function copy(text) {
-  try { await navigator.clipboard.writeText(text); flash("Copied to clipboard"); }
-  catch { flash("Copy failed"); }
-}
-
-document.querySelectorAll(".tab").forEach((tab) => {
-  tab.onclick = () => { setView(tab.dataset.view); renderAll(); };
-});
-$("#search").oninput = renderList;
-$("#sort").onchange = renderList;
-$("#modelFilter").onchange = renderList;
-$("#clearPicks").onclick = () => { state.picks = []; renderAll(); };
-$("#pickVisible").onclick = () => { state.picks = visibleVideos().slice(0, 2).map((v) => v.id); setView("compare"); renderAll(); };
-$("#rescan").onclick = async () => { $("#status").textContent = "rescanning…"; await load("/api/rescan").catch((e) => flash(String(e))); };
-$("#themeToggle").onclick = () => {
-  const root = document.documentElement;
-  // With no explicit choice yet, resolve what the system is actually showing
-  // and flip away from that.
-  const current = root.dataset.theme
-    || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
-  const next = current === "dark" ? "light" : "dark";
-  root.dataset.theme = next;
-  try { localStorage.setItem("wvb-theme", next); } catch (e) { /* ignore */ }
-  flash(`${next} theme`);
-};
-$("#filePicker").onchange = (event) => addLocalFiles(event.target.files);
-
-document.addEventListener("dragover", (event) => { event.preventDefault(); document.body.classList.add("dragging"); });
-document.addEventListener("dragleave", (event) => { if (event.relatedTarget === null) document.body.classList.remove("dragging"); });
-document.addEventListener("drop", (event) => {
-  event.preventDefault();
-  document.body.classList.remove("dragging");
-  if (event.dataTransfer.files.length) addLocalFiles(event.dataTransfer.files);
-});
-
-document.addEventListener("keydown", (event) => {
-  if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
-  if (state.view !== "compare" || !players.length) return;
-  if (event.key === "b" || event.key === "B") { event.preventDefault(); toggleBlink(); }
-  else if (event.code === "Space") { event.preventDefault(); players[0].paused ? playAll() : pauseAll(); }
-  else if (event.key === "ArrowLeft") { event.preventDefault(); stepFrames(event.shiftKey ? -10 : -1); }
-  else if (event.key === "ArrowRight") { event.preventDefault(); stepFrames(event.shiftKey ? 10 : 1); }
-  else if (event.key === "Home") { event.preventDefault(); seekAll(0); }
-});
-
-load().catch((error) => { $("#status").textContent = `error: ${error.message}`; });
-</script>
+<script src="/static/app.js"></script>
 </body>
 </html>
