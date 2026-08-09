@@ -1,66 +1,94 @@
+<div align="center">
+
+<img src="icon.png" width="96" alt="">
+
 # WanGP Video Browser
 
-A local web app for browsing, previewing and **comparing** the videos produced by
-[Wan2GP / WanGP](https://github.com/deepbeepmeep/Wan2GP).
+**Your WanGP outputs folder is a heap of 30 MB clips with 200-character filenames.**
+**This turns it into a browsable library — and tells you exactly what changed between any two runs.**
 
-WanGP embeds the complete generation settings as a JSON blob inside every video it
-writes (the MP4 `©cmt` atom, or the `comment` tag for MKV/WEBM). This app reads that
-blob back out, indexes every output it can find, and lets you play several results
-side by side while it highlights exactly which settings changed between them.
+A 1-click [Pinokio](https://pinokio.co) launcher for [Wan2GP / WanGP](https://github.com/deepbeepmeep/Wan2GP).
+No dependencies, no config, no database — it finds your outputs by itself.
 
-![icon](icon.png)
+</div>
 
-## What it does
+![Preview tab](screenshots/preview.jpg)
 
-- **Auto-discovers your outputs.** On start it scans every `<PINOKIO_HOME>/api/*/app/outputs`
-  folder, so an existing Wan2GP install is picked up with no configuration. Extra folders
-  can be added from the UI and are remembered.
-- **Reads the embedded generation settings** — prompt, seed, model, steps, flow shift,
-  sampler, LoRAs, sliding-window settings, generation time and everything else WanGP records.
-  MP4 parsing is pure Python, so no ffprobe is required to read metadata.
-- **Preview** any result with the video on top and the full settings underneath, broken
-  into readable groups, plus file and stream info (codec, resolution, fps, bitrate, audio).
-- **Compare up to 4 videos** with a shared transport: play/pause all, a single scrubber,
-  frame stepping, playback speed, loop and per-video audio solo. Each clip carries a
-  frame-accurate readout (`0:01.25 · f30`) so you can cite an exact frame.
-- **Three comparison modes**, because side-by-side alone hides small differences:
-  - **Side by side** — up to 4 clips, the widest overview.
-  - **Wipe** — two clips stacked in the same position with a draggable divider, for
-    checking whether a detail actually moved.
-  - **Blink** — swaps two clips in the exact same screen position, manually (`B`) or on an
-    auto-flicker timer. The most effective way to make subtle differences pop; the
-    highlighted tag always tells you which clip you are looking at.
-- **Settings diff.** A table of every setting across the selected videos, with the
-  differing rows highlighted and a "differences only" filter — so "what actually changed
-  between these two runs?" is a one-glance answer.
-- **Compare against outside files.** Drag any video into the window (or use
-  *Load file to compare…*) to drop it into the compare tray; its embedded WanGP
-  metadata is parsed in the browser.
-- **Shareable links.** The *Link* button copies a URL that reopens the exact comparison
-  in the same mode (`/?compare=<id>,<id>&mode=wipe`).
-- **Light and dark themes.** Follows your system/Pinokio colour scheme automatically; the
-  ◐ button in the header overrides it and the choice is remembered.
+---
 
-Only the Python standard library is required. `ffmpeg`/`ffprobe` are used when present
-for thumbnails and exact stream info, and the app degrades gracefully without them.
+## The problem it solves
 
-## How to use it
+When you're dialling in a shot you end up with a dozen near-identical clips. Was the good one
+15 steps or 8? Did the flow shift matter, or was it just a luckier seed?
 
-1. **Install** — from the Pinokio sidebar (creates the venv).
-2. **Start** — then **Open Web UI**.
-3. Pick a video in the left list to inspect it in **Preview**.
-4. Click the **+** on a card (or double-click the card) to add it to **Compare**.
-   Add up to four, then use the transport bar to play them in sync.
-5. With exactly two picked, switch to **Wipe** or **Blink** to overlay them in the same
-   screen position — that is where small differences become obvious.
-6. Read the **Settings diff** under the players to see what changed.
+The answer is already inside every file: **WanGP writes the full generation settings as JSON into
+the MP4 itself** (the `©cmt` atom). Nothing reads it back — so the knowledge is stranded in files
+you can't tell apart.
 
-Useful shortcuts while in the Compare tab: `Space` play/pause all, `←`/`→` step one
-frame (`Shift` for 10), `Home` jump to start, `B` swap the blink clips.
+This app reads it back, and builds everything else on top.
 
-If your outputs live somewhere unusual, add the folder under the **Folders** tab.
+---
 
-## Running it outside Pinokio
+## What you can do with it
+
+### 🔎 Find the run you're thinking of
+
+Every clip is indexed by its embedded settings — search by prompt text, seed, model or filename,
+sort by date, size, duration or **how long it took to generate**. Each card shows the things that
+actually differ between runs, so you can scan rather than read.
+
+Pick one and the whole recipe is laid out underneath it: prompt, seed, sampler, steps, flow shift,
+LoRAs, sliding-window settings, generation time, plus real stream info (codec, fps, bitrate).
+
+### 🆚 See exactly what changed between two runs
+
+![Compare tab with settings diff](screenshots/compare.jpg)
+
+Put up to four clips side by side on one shared transport — play them all together, scrub them
+together, step a frame at a time, solo the audio of any one.
+
+Underneath, the **settings diff** does the part you'd otherwise do by squinting: it lays every
+setting side by side, highlights the ones that differ and hides the ~40 that don't. In the shot
+above, that's *seed*, *video_length*, *multi_prompts_gen_type*, *sliding_window_size* and the
+prompt — everything else was identical.
+
+### 🎚️ Catch differences too subtle for side-by-side
+
+![Wipe mode](screenshots/wipe.jpg)
+
+Two clips a few pixels apart look the same when they're side by side. So there are two more modes
+that put them in the **same screen position**:
+
+- **Wipe** — stack them and drag the divider across.
+- **Blink** — swap between them in place, by hand (`B`) or on an auto-flicker timer. Flicker two
+  near-identical generations and whatever moved jumps straight out at you. The highlighted tag
+  always tells you which one you're looking at.
+
+### 🌗 Fits wherever you run it
+
+![Light theme](screenshots/light.jpg)
+
+Follows your system or Pinokio colour scheme, with a manual override that sticks. The video
+stages stay black in both, so nothing skews how you judge the footage.
+
+---
+
+## Install
+
+**In Pinokio:** *Discover → Download from URL* →
+
+```
+https://github.com/Noeljarillo/wangp-video-browser
+```
+
+Then **Install** → **Start** → **Open Web UI**. Install takes seconds — there are no
+Python dependencies to download.
+
+It auto-discovers every `<PINOKIO_HOME>/api/*/app/outputs` folder, so an existing Wan2GP
+install just shows up. Anything elsewhere can be added from the **Folders** tab and is remembered.
+
+<details>
+<summary><b>Running it outside Pinokio</b></summary>
 
 ```bash
 cd app
@@ -69,7 +97,39 @@ python server.py --port 7899 --root /path/to/outputs --root /another/outputs
 WANGP_OUTPUTS=/path/to/outputs python server.py  # or point it with an env var
 ```
 
-It binds to `127.0.0.1` by default. Set `WANGP_BROWSER_VERBOSE=1` for request logging.
+Python 3.8+, standard library only. Binds to `127.0.0.1`. Set `WANGP_BROWSER_VERBOSE=1` for
+request logging.
+</details>
+
+---
+
+## How to use it
+
+1. Pick a clip in the left list to inspect it in **Preview**.
+2. Click **+** on a card (or double-click it) to add it to **Compare** — up to four.
+3. With exactly two picked, switch to **Wipe** or **Blink**.
+4. Read the **Settings diff** underneath to see what changed.
+5. Hit **Link** to copy a URL that reopens that exact comparison, in that exact mode.
+
+**Keyboard** (Compare tab): `Space` play/pause all · `←` `→` step one frame (`Shift` for 10) ·
+`Home` back to start · `B` swap the blink clips.
+
+**Comparing something from outside your outputs folder?** Drag any video onto the window. Its
+embedded WanGP metadata gets parsed in the browser and it joins the compare tray like any other.
+
+---
+
+## Requirements
+
+- **Pinokio** (or any Python 3.8+).
+- **Nothing else.** Metadata is parsed with a pure-Python MP4 box reader, so `ffprobe` isn't needed.
+- `ffmpeg`/`ffprobe` are used **if present** for thumbnails and exact stream info, and the app
+  degrades gracefully without them.
+
+Videos need to have been written by WanGP with metadata saving on (`metadata_type: "metadata"`,
+its default). Older or re-encoded files still appear — just with empty settings.
+
+---
 
 ## API
 
@@ -201,9 +261,8 @@ await fetch(`${BASE}/api/roots/add`, {
 
 ## Notes
 
-- Metadata only exists in files WanGP wrote with metadata saving enabled
-  (`metadata_type: "metadata"` in its server config, which is the default). Older or
-  externally re-encoded files show up in the list with an empty `meta`.
 - The index is cached in `app/.cache/` keyed by path + size + mtime, so rescans are cheap.
   **Reset** clears the venv and that cache; it never touches your videos.
-- The server only ever reads your video files — nothing is modified, moved or deleted.
+- The server only ever **reads** your video files — nothing is modified, moved or deleted.
+- Thumbnails double as poster frames, so clips show a real still instead of a black box
+  before you press play.

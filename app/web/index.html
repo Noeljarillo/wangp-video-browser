@@ -286,7 +286,9 @@
   .toggle.on { background: var(--accent-dim); border-color: var(--accent-line); color: var(--accent-text); }
 
   /* diff table */
-  table.diff { width: 100%; border-collapse: collapse; font-size: 12px; }
+  /* Fixed layout so every clip's column is the same width - with auto layout a
+     long prompt in one column starves the others into unreadable slivers. */
+  table.diff { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
   table.diff th, table.diff td {
     text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top;
     overflow-wrap: anywhere;
@@ -431,6 +433,9 @@ const fmtValue = (value) => {
 
 const getVideo = (id) => state.external.get(id) || state.videos.find((v) => v.id === id) || null;
 const mediaUrl = (video) => (video.external ? video.url : `/media/${video.id}`);
+/* Without a poster a <video preload="metadata"> paints solid black until playback
+   starts. The server already renders thumbnails, so reuse them as the still. */
+const posterUrl = (video) => (video.external ? "" : `/thumb/${video.id}`);
 
 /* WanGP prefixes prompts with control tags and a "<something>_description:" label
    (e.g. "[/duration=5s] integrated_multimodal_description: [Shot 1] real text").
@@ -652,7 +657,7 @@ function renderPreview() {
     ]));
   }
 
-  const player = el("video", { controls: true, loop: state.loop, preload: "metadata", src: mediaUrl(video) });
+  const player = el("video", { controls: true, loop: state.loop, preload: "metadata", poster: posterUrl(video), src: mediaUrl(video) });
   const pickIndex = state.picks.indexOf(video.id);
   view.replaceChildren(el("div", { className: "preview-wrap" }, [
     el("div", { className: "preview-stage" }, [
@@ -699,7 +704,7 @@ function toggleBlink() {
    clips in the same screen position, which is what makes small differences pop. */
 function buildSideBySide(videos) {
   const cells = videos.map((video, index) => {
-    const player = el("video", { preload: "metadata", muted: true, playsInline: true, src: mediaUrl(video) });
+    const player = el("video", { preload: "metadata", muted: true, playsInline: true, poster: posterUrl(video), src: mediaUrl(video) });
     players.push(player);
     const readout = el("span", { className: "timecode", textContent: "0:00.00 · f0" });
     timecodes.push({ node: readout, fps: fpsOf(video) });
@@ -732,8 +737,8 @@ function buildSideBySide(videos) {
 function buildStack(videos) {
   const [first, second] = videos;
   // players[0] stays the master clock regardless of DOM stacking order.
-  const over = el("video", { className: "over", preload: "metadata", muted: true, playsInline: true, src: mediaUrl(first) });
-  const under = el("video", { className: "under", preload: "metadata", muted: true, playsInline: true, src: mediaUrl(second) });
+  const over = el("video", { className: "over", preload: "metadata", muted: true, playsInline: true, poster: posterUrl(first), src: mediaUrl(first) });
+  const under = el("video", { className: "under", preload: "metadata", muted: true, playsInline: true, poster: posterUrl(second), src: mediaUrl(second) });
   players.push(over, under);
 
   const readout = el("span", { className: "timecode", textContent: "0:00.00 · f0" });
