@@ -1,0 +1,5 @@
+{
+  "title": "WanGP Video Browser",
+  "description": "Browse, preview and compare Wan2GP / WanGP video generations side by side, with the embedded generation settings and a diff of what changed between runs.",
+  "icon": "icon.png"
+}

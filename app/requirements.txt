@@ -1,0 +1,3 @@
+# WanGP Video Browser runs on the Python standard library alone.
+# ffmpeg/ffprobe are used when present (thumbnails + exact stream info) but are optional.
+# Add any future dependencies below.

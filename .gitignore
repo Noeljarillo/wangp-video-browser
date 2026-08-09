@@ -1,0 +1,20 @@
+# created by install.js / at runtime
+app/env/
+app/.cache/
+__pycache__/
+*.pyc
+
+# created by Pinokio itself (machine-local state)
+cache/
+logs/
+ENVIRONMENT
+
+# AI agent rule files Pinokio drops in - identical 42KB copies of the dev guide
+.clinerules
+.cursorrules
+.windsurfrules
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+QWEN.md
+.geminiignore
