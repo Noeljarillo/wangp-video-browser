@@ -846,6 +846,8 @@ function renderPreview() {
     window.WVB_LIB && !video.external ? WVB_LIB.previewBar(video) : null,
   ]);
 
+  if (typeof decoratePreviewHead === "function") decoratePreviewHead(head, video);
+
   const { player } = buildPlayer(video);
   const hasMeta = Object.keys(meta).length > 0;
 

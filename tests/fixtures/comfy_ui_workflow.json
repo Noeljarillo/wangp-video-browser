@@ -1,0 +1,13 @@
+{
+  "last_node_id": 9,
+  "last_link_id": 9,
+  "nodes": [
+    {"id": 3, "type": "KSampler", "inputs": [{"name": "model", "link": 1}, {"name": "positive", "link": 4}, {"name": "negative", "link": 6}, {"name": "latent_image", "link": 2}], "widgets_values": [987654, "fixed", 20, 7.5, "euler", "normal", 1]},
+    {"id": 4, "type": "CheckpointLoaderSimple", "inputs": [], "widgets_values": ["sd_xl_base_1.0.safetensors"]},
+    {"id": 5, "type": "EmptyLatentImage", "inputs": [], "widgets_values": [1024, 576, 1]},
+    {"id": 6, "type": "CLIPTextEncode", "inputs": [{"name": "clip", "link": 3}], "widgets_values": ["a lighthouse in a storm"]},
+    {"id": 7, "type": "CLIPTextEncode", "inputs": [{"name": "clip", "link": 5}], "widgets_values": ["text, watermark"]}
+  ],
+  "links": [[1, 4, 0, 3, 0, "MODEL"], [2, 5, 0, 3, 3, "LATENT"], [3, 4, 1, 6, 0, "CLIP"], [4, 6, 0, 3, 1, "CONDITIONING"], [5, 4, 1, 7, 0, "CLIP"], [6, 7, 0, 3, 2, "CONDITIONING"]],
+  "version": 0.4
+}
