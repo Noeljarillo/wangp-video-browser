@@ -1,0 +1,8 @@
+# Analysis add-on dependencies (installed into app/analysis/env by "Install analysis").
+# The core browser never imports these. torch / torchvision are installed first by
+# torch.js (picks the right CUDA / ROCm / CPU wheel for this machine):
+#   torch, torchvision
+numpy
+pillow
+onnxruntime-gpu; sys_platform != "darwin"
+onnxruntime; sys_platform == "darwin"

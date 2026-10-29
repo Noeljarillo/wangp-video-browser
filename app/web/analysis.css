@@ -1,0 +1,21 @@
+/* Analysis add-on status chip (P3.0) */
+.an-chip {
+  position: relative; display: inline-flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 8px; border: 1px solid var(--hairline); border-radius: 4px;
+  font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; max-width: 30vw;
+}
+.an-chip[hidden] { display: none; }
+.an-chip:focus-visible { outline: none; box-shadow: var(--ring); }
+.an-text { overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.an-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); opacity: .6; }
+.an-chip[data-tone="busy"] .an-dot { background: var(--accent); opacity: 1; }
+.an-chip[data-tone="paused"] .an-dot { background: var(--change-line); opacity: 1; }
+.an-chip[data-tone="busy"] { color: var(--ink-2); }
+.an-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; }
+.an-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .4s var(--ease); }
+@media (max-width: 767px) {
+  .an-chip { max-width: 34px; padding: 0 6px; }
+  .an-chip .an-text { display: none; }
+  .an-chip .an-dot { width: 8px; height: 8px; }
+  .an-chip[data-tone="absent"] { display: none; }
+}
