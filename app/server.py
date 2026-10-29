@@ -37,6 +37,7 @@ import inputs
 import library
 import metadata as meta_reader
 import semantic_host
+import tags_host
 import watcher
 from filmstrip import Filmstrips
 
@@ -614,6 +615,10 @@ class Handler(BaseHTTPRequestHandler):
                 by_path = {v["path"]: v for v in _index["videos"]}
             q = urllib.parse.parse_qs(parsed.query).get("q", [""])[0]
             return self._send_json(semantic_host.search(q, by_path))
+        if route == "/api/tags":
+            with _index_lock:
+                entries = list(_index["videos"])
+            return self._send_json(tags_host.payload(entries))
 
         if route == "/api/rescan":
             refresh_index()

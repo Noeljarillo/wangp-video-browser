@@ -1,0 +1,38 @@
+{
+  "_comment": "P4.2 auto-tag vocabulary. JSON-compatible YAML (the core reads it with the stdlib json module). Each group picks its best label per clip; prompts are SigLIP zero-shot templates averaged per label. 'motion' is not zero-shot: it comes from optical flow (thresholds below).",
+  "groups": [
+    {"id": "shot", "label": "Shot", "labels": {
+      "extreme close-up": ["an extreme close-up of an eye or a mouth", "a macro shot filling the frame with a small detail"],
+      "close-up": ["a close-up shot of a face", "a close-up portrait of a person"],
+      "medium shot": ["a medium shot of a person from the waist up", "a mid shot of people talking"],
+      "wide shot": ["a wide shot of a person in a large environment", "a full body shot of a person far from the camera"],
+      "establishing shot": ["an establishing shot of a landscape", "an aerial view of a city"]
+    }},
+    {"id": "place", "label": "Location", "labels": {
+      "indoor": ["a photo taken indoors", "the inside of a room"],
+      "outdoor": ["a photo taken outdoors", "an outdoor scene under the sky"]
+    }},
+    {"id": "time", "label": "Time of day", "labels": {
+      "day": ["a scene in bright daylight", "a sunny day"],
+      "night": ["a scene at night", "a dark night scene lit by street lights"],
+      "golden hour": ["a scene at sunset", "warm golden hour light"]
+    }},
+    {"id": "style", "label": "Style", "labels": {
+      "photoreal": ["a realistic photograph", "a cinematic film still"],
+      "anime": ["an anime illustration", "a frame from an anime cartoon"],
+      "3d render": ["a 3d render", "a computer generated 3d animation"],
+      "painting": ["an oil painting", "a watercolor illustration"],
+      "black and white": ["a black and white photo", "a monochrome film still"]
+    }}
+  ],
+  "motion": {
+    "label": "Camera motion",
+    "labels": ["static", "pan", "tilt", "zoom", "orbit"],
+    "pairs": 6,
+    "step_frames": 2,
+    "width": 256,
+    "static_below": 0.004,
+    "zoom_divergence": 0.0025,
+    "orbit_parallax": 0.6
+  }
+}

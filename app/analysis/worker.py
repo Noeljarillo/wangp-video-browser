@@ -16,9 +16,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from analysis import characters, faces, frames, gpu, jobqueue  # noqa: E402
 
 try:  # needs numpy / torch from the add-on venv
-    from analysis import semantic
+    from analysis import semantic, tags
 except ImportError:  # dev mode on the core interpreter
-    semantic = None
+    semantic = tags = None
 
 
 def run_noop(job, ctx):
@@ -31,6 +31,9 @@ NEEDS_GPU = {"faces"}
 if semantic:
     HANDLERS["semantic"] = semantic.run_job
     NEEDS_GPU.add("semantic")
+if tags:
+    HANDLERS["tags"] = tags.run_job
+    NEEDS_GPU.add("tags")
 
 
 def _parent_alive(pid):
