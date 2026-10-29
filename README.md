@@ -1,90 +1,83 @@
 <div align="center">
 
-<img src="icon.png" width="96" alt="">
+<img src="icon.png" width="96" alt="WanGP Video Browser icon">
 
 # WanGP Video Browser
 
-**Your WanGP outputs folder is a heap of 30 MB clips with 200-character filenames.**
-**This turns it into a browsable library — and tells you exactly what changed between any two runs.**
+### A local library, inspector and A/B comparison tool for AI-generated video
 
-A 1-click [Pinokio](https://pinokio.co) launcher for [Wan2GP / WanGP](https://github.com/deepbeepmeep/Wan2GP).
-No dependencies, no config, no database — it finds your outputs by itself.
+**Browse your Wan2GP (WanGP) outputs, see the full generation recipe of every clip,
+and find out exactly what changed between two runs.**
+
+1-click install for [Pinokio](https://pinokio.co) · works with [Wan2GP / WanGP](https://github.com/deepbeepmeep/Wan2GP) out of the box ·
+any folder of MP4s (ComfyUI, LTX, Hunyuan…) can be browsed too · no dependencies, no account, nothing leaves your machine
+
+![WanGP Video Browser: library, player and the full generation recipe of the selected clip](screenshots/preview.jpg)
 
 </div>
 
-![Preview tab](screenshots/preview.jpg)
-
 ---
 
-## The problem it solves
+## Why
 
-When you're dialling in a shot you end up with a dozen near-identical clips. Was the good one
-15 steps or 8? Did the flow shift matter, or was it just a luckier seed?
+Generating video with Wan 2.x, LTX-Video, Hunyuan or any other model in WanGP leaves you with
+a folder of 30 MB clips with 200-character filenames. When you are dialling in a shot you end up
+with a dozen near-identical takes. Was the good one 20 steps or 8? Did the flow shift matter, or
+was it just a luckier seed?
 
 The answer is already inside every file: **WanGP writes the full generation settings as JSON into
-the MP4 itself** (the `©cmt` atom). Nothing reads it back — so the knowledge is stranded in files
-you can't tell apart.
+the MP4 itself**. Nothing reads it back, so that knowledge is stuck in files you can't tell apart.
 
-This app reads it back, and builds everything else on top.
+This app reads it back and builds a proper video library on top of it.
+
+## Features
+
+| | |
+| --- | --- |
+| **Video library** | Every clip indexed with thumbnails. Search by prompt, seed, model or filename; sort by date, size, duration or render time. Hover a thumbnail to scrub it. |
+| **Generation recipe** | Seed, steps, guidance, flow shift, solver, resolution, frames, LoRAs with weights and render time, colour-coded and copied with one click. |
+| **Readable prompts** | Structured WanGP prompts split into summary, description and subject sections, with placeholders like *Subject 1* and *Shot 2* highlighted. |
+| **A/B comparison** | Up to four clips on one synced transport: play, scrub and frame-step them together, solo any clip's audio. |
+| **Settings diff** | Only the settings that differ between runs, with a word-by-word prompt diff. |
+| **Wipe & blink** | Overlay two takes in the same screen position and drag a divider, or flicker between them so motion differences jump out. |
+| **Mobile** | A real phone layout with bottom navigation, sheet previews and full-screen wipe. Open it over your LAN through Pinokio. |
+| **Local & private** | Pure-Python standard library server on `127.0.0.1`. Read-only on your files. No telemetry, no CDN, no external requests. |
 
 ---
 
-## What you can do with it
+## Compare two generations
 
-### 🔎 Find the run you're thinking of
+![Comparing two AI video generations side by side with a settings diff](screenshots/compare.jpg)
 
-Every clip is indexed by its embedded settings — search by prompt text, seed, model or filename,
-sort by date, size, duration or **how long it took to generate**. Each card shows the things that
-actually differ between runs, so you can scan rather than read.
+Put up to four clips side by side on one shared transport. Underneath, the **settings diff** lays
+WanGP's ~50 settings side by side and shows only the rows that differ. Two runs of the same prompt
+usually come down to a handful of rows: seed, steps, model weights. When the prompt itself
+changed, it is diffed **word by word**, so a three-word edit in a 400-word prompt stands out.
 
-Pick one and the whole recipe is laid out underneath it: prompt, seed, sampler, steps, flow shift,
-LoRAs, sliding-window settings, generation time, plus real stream info (codec, fps, bitrate).
+## Catch differences too subtle for side by side
 
-### 🆚 See exactly what changed between two runs
+![Wipe comparison of two AI video takes](screenshots/wipe.jpg)
 
-![Compare tab with settings diff](screenshots/compare.jpg)
+Two clips a few pixels apart look the same next to each other, so two more modes put them in the
+**same screen position**:
 
-Put up to four clips side by side on one shared transport — play them all together, scrub them
-together, step a frame at a time, solo the audio of any one.
+- **Wipe**: stack them and drag the divider across.
+- **Blink**: swap between them in place, by hand (`B`) or on an auto-flicker timer. Whatever
+  moved jumps straight out. The highlighted tag always shows which clip you are looking at.
 
-Underneath, the **settings diff** does the part you'd otherwise do by squinting: it lays all
-~49 settings side by side and shows you only the ones that differ. In the shot above, two runs of
-an identical prompt come down to four rows — *seed* and three timestamps. Everything else matched.
+## On your phone
 
-When the prompt itself changed, it goes further and diffs it **word by word**, striking through
-what you removed and marking what you added, in place inside the sentence. Finding a three-word
-change in a 400-word prompt stops being a reading exercise.
+<img src="screenshots/mobile.jpg" width="290" alt="AI video library on mobile"> <img src="screenshots/mobile-cmp.jpg" width="290" alt="Wipe comparison on mobile">
 
-### 🎚️ Catch differences too subtle for side-by-side
+Not a shrunk desktop layout. The library becomes a contact sheet, navigation moves to a bottom
+bar, preview arrives as a sheet, and comparison defaults to wipe because two 195-pixel frames side
+by side tell you nothing. The settings diff turns into stacked cards.
 
-![Wipe mode](screenshots/wipe.jpg)
+## Look and feel
 
-Two clips a few pixels apart look the same when they're side by side. So there are two more modes
-that put them in the **same screen position**:
-
-- **Wipe** — stack them and drag the divider across.
-- **Blink** — swap between them in place, by hand (`B`) or on an auto-flicker timer. Flicker two
-  near-identical generations and whatever moved jumps straight out at you. The highlighted tag
-  always tells you which one you're looking at.
-
-### 📱 Works properly on your phone
-
-<img src="screenshots/mobile.jpg" width="290" alt="Library on mobile"> <img src="screenshots/mobile-cmp.jpg" width="290" alt="Wipe comparison on mobile">
-
-Not a shrunk desktop layout — a different one. The library becomes a two-up contact sheet,
-navigation moves to a bottom bar within thumb reach, preview arrives as a sheet, and comparison
-defaults to **wipe**, because two 195-pixel-wide frames side by side tell you nothing while a
-wipe uses the whole screen. The settings diff turns into stacked cards instead of an unreadable
-three-column table.
-
-Reach it from your phone over your LAN through Pinokio's remote access.
-
-### 🌗 Fits wherever you run it
-
-![Dark theme](screenshots/dark.jpg)
-
-Follows your system or Pinokio colour scheme, with a manual override that sticks. The video
-stages stay black in both themes, so nothing skews how you judge the footage.
+A dark, pro-app interface in the style of desktop video editors: neutral greys that don't skew
+how you judge colour, one accent for anything clickable, and clip-label colours that carry
+meaning (seed, sampling, size, timing, LoRAs). A light theme is one click away and remembered.
 
 ---
 
@@ -107,8 +100,8 @@ install just shows up. Anything elsewhere can be added from the **Folders** tab 
 
 ```bash
 cd app
-python server.py --port 7899                     # auto-discovers outputs folders
-python server.py --port 7899 --root /path/to/outputs --root /another/outputs
+python server.py                                 # http://127.0.0.1:7899, auto-discovers outputs
+python server.py --root /path/to/outputs --root /another/outputs
 WANGP_OUTPUTS=/path/to/outputs python server.py  # or point it with an env var
 ```
 
@@ -149,7 +142,22 @@ embedded WanGP metadata gets parsed in the browser and it joins the compare tray
   degrades gracefully without them.
 
 Videos need to have been written by WanGP with metadata saving on (`metadata_type: "metadata"`,
-its default). Older or re-encoded files still appear — just with empty settings.
+its default) for the settings panel and diff. Older or re-encoded files still appear, just with
+empty settings.
+
+### FAQ
+
+**Does it work with ComfyUI?** You can add a ComfyUI `output` folder from the **Folders** tab and
+browse, play, scrub and wipe/blink-compare those clips. The recipe and settings diff currently read
+WanGP's embedded metadata only, so ComfyUI clips show without settings.
+
+**Which formats?** MP4, MOV, M4V, MKV, WebM and AVI are indexed. Generation settings are read from
+MP4/MOV/M4V.
+
+**Does it change my files?** No. The server only reads them.
+
+**Which port?** `7899` by default, chosen to stay clear of the port Pinokio assigns to Wan2GP.
+If it is taken the next free port is used; set `WANGP_BROWSER_PORT` to choose.
 
 ---
 
@@ -295,7 +303,12 @@ await fetch(`${BASE}/api/roots/add`, {
 
 ## Credits
 
-Typeface is [IBM Plex](https://github.com/IBM/plex) (Sans + Mono), bundled under the
+UI typeface is [Source Sans 3](https://github.com/adobe-fonts/source-sans) with
+[IBM Plex Mono](https://github.com/IBM/plex) for file names and timecode, both bundled under the
 [SIL Open Font License 1.1](app/web/fonts/LICENSE.txt) so the app renders identically offline
-and on every device. Icons are drawn in the page — no icon font, no CDN, no external requests
+and on every device. Icons are drawn in the page: no icon font, no CDN, no external requests
 of any kind.
+
+<sub>Keywords: Wan2GP, WanGP, Wan 2.1, Wan 2.2, AI video generation, video generation output
+browser, generation metadata viewer, seed and settings comparison, A/B video comparison, Pinokio,
+ComfyUI output folder, local AI video gallery.</sub>
