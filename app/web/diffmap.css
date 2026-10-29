@@ -1,0 +1,27 @@
+/* Compare: difference heatmap (P5.3) */
+.dm-wrap { display: grid; gap: 8px; }
+.stack.diffmap { touch-action: auto; }
+/* The sources must keep decoding, so they stay laid out but invisible. */
+.stack.diffmap .dm-src { opacity: 0; pointer-events: none; }
+.stack.diffmap .dm-canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; background: var(--well); image-rendering: auto;
+}
+.dm-legend {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px;
+  width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 2px;
+  font: 500 11.5px/1.5 var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-3);
+}
+.dm-title { font-family: var(--sans); font-weight: 600; color: var(--ink-2); font-size: 12px; }
+.dm-scale {
+  width: 180px; height: 10px; border-radius: 2px;
+  border: 1px solid var(--hairline); image-rendering: auto;
+}
+.dm-gain { flex: none; width: auto; }
+.dm-readout { color: var(--ink-2); margin-left: auto; }
+.dm-status { color: var(--ink-3); font-family: var(--sans); }
+.dm-status:empty { display: none; }
+@media (max-width: 767px) {
+  .dm-scale { width: 110px; }
+  .dm-readout { margin-left: 0; flex-basis: 100%; }
+}

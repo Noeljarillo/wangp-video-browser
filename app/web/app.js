@@ -351,7 +351,7 @@ function applyIndex(data) {
   if (requested && !state.picks.length) {
     state.picks = requested.split(",").filter((id) => id && getVideo(id)).slice(0, MAX_PICKS);
     const mode = params.get("mode");
-    if (["side", "wipe", "blink"].includes(mode)) { state.cmpMode = mode; state.modeTouched = true; }
+    if (["side", "wipe", "blink", "diff"].includes(mode)) { state.cmpMode = mode; state.modeTouched = true; }
     if (state.picks.length) setView("compare");
   }
   state.picks = state.picks.filter((id) => getVideo(id));
@@ -1006,6 +1006,7 @@ function stopCompare() {
   if (blinkTimer) clearInterval(blinkTimer);
   blinkTimer = 0;
   blinkStack = null;
+  if (window.WVB_DIFFMAP) WVB_DIFFMAP.stop();
   if (cmpTransport) cmpTransport.stop();
   cmpTransport = null;
 }
@@ -1173,12 +1174,15 @@ function renderCompare() {
 
   const players = [];
   const stamps = [];
+  if (state.cmpMode === "diff" && !window.WVB_DIFFMAP) state.cmpMode = "wipe";
   const stage = state.cmpMode === "side"
     ? buildSideBySide(videos, players, stamps)
+    : state.cmpMode === "diff" ? WVB_DIFFMAP.build(videos, players, stamps)
     : buildStack(videos, players, stamps);
 
   const modeSwitch = el("div", { className: "mode-switch", role: "group", ariaLabel: "Comparison mode" },
-    [["side", "Side by side", "compare"], ["wipe", "Wipe", "wipe"], ["blink", "Blink", "blink"]]
+    [["side", "Side by side", "compare"], ["wipe", "Wipe", "wipe"], ["blink", "Blink", "blink"],
+      ...(window.WVB_DIFFMAP ? [["diff", "Difference", "diff"]] : [])]
       .map(([mode, label, ic]) => {
         const button = el("button", {
           disabled: mode !== "side" && !stackable,
