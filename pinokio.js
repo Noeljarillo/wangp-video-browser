@@ -2,7 +2,7 @@ const path = require('path')
 module.exports = {
   version: "8.0",
   title: "WanGP Video Browser",
-  description: "Browse, preview and compare Wan2GP / WanGP video generations side by side, with the embedded generation settings and a diff of what changed between runs.",
+  description: "AI video generation browser for Wan2GP / WanGP (and ComfyUI output folders): library, full generation recipe per clip, settings diff and side-by-side, wipe and blink A/B comparison.",
   icon: "icon.png",
   menu: async (kernel, info) => {
     let installed = info.exists("app/env")
