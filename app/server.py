@@ -28,6 +28,7 @@ from hashlib import sha1
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import export_settings
 import inputs
 import library
 import metadata as meta_reader
@@ -570,6 +571,18 @@ class Handler(BaseHTTPRequestHandler):
             if ref["source"] == "embedded":
                 return self._send_bytes(inputs.read_embedded(ref), ref["_mime"])
             return self._send_file(ref["_path"], cache="private, max-age=3600")
+
+        if route.startswith("/api/export/"):
+            entry = find_video(route[len("/api/export/"):])
+            if not entry:
+                return self._send_json({"error": "unknown video"}, 404)
+            new_seed = urllib.parse.parse_qs(parsed.query).get("new_seed", ["0"])[0] in ("1", "true")
+            try:
+                body, name = export_settings.export(entry, new_seed=new_seed)
+            except export_settings.NotExportable as error:
+                return self._send_json({"error": str(error)}, 400)
+            return self._send_bytes(body, "application/json; charset=utf-8", cache="no-store",
+                                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
         if route.startswith("/static/"):
             target = (WEB_DIR / route[len("/static/"):]).resolve()

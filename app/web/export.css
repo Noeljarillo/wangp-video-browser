@@ -1,0 +1,6 @@
+/* Re-run in WanGP (P1.4) — export buttons in the preview header. */
+.exp-actions { display: flex; gap: 4px; }
+@media (max-width: 767px) {
+  .preview-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .exp-actions .exp-label { display: none; }
+}

@@ -842,6 +842,7 @@ function renderPreview() {
       }, [icon(pickIndex >= 0 ? "check" : "compare"),
         pickIndex >= 0 ? `In compare · ${pickIndex + 1}` : "Compare"]),
       iconButton("drop", "Compare against a file from anywhere", { className: "ghost", onclick: () => $("#filePicker").click() }),
+      window.WVB_EXPORT ? WVB_EXPORT.actions(video) : null,
     ]),
     window.WVB_LIB && !video.external ? WVB_LIB.previewBar(video) : null,
   ]);
