@@ -13,14 +13,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from analysis import gpu, jobqueue  # noqa: E402
+from analysis import frames, gpu, jobqueue  # noqa: E402
 
 
 def run_noop(job, ctx):
     return {"ok": True}
 
 
-HANDLERS = {"noop": run_noop}
+HANDLERS = {"noop": run_noop, "frames": frames.run_job}
 NEEDS_GPU = set()
 
 

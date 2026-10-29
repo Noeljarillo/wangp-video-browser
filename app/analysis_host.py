@@ -21,8 +21,9 @@ CACHE_DIR = APP_DIR / ".cache"
 DB_PATH = CACHE_DIR / "analysis.db"
 STALE_AFTER = 15  # seconds without a worker heartbeat
 
-# Job kinds enqueued for every clip. "noop" is the scaffold's smoke-test job.
-KINDS = [k for k in os.environ.get("ANALYSIS_KINDS", "noop").split(",") if k.strip()]
+# Job kinds enqueued for every clip, in order. "frames" (P3.1) feeds every later
+# analyser; "noop" (the scaffold's smoke test) can be added via ANALYSIS_KINDS.
+KINDS = [k for k in os.environ.get("ANALYSIS_KINDS", "frames").split(",") if k.strip()]
 
 _lock = threading.Lock()
 _proc = None
