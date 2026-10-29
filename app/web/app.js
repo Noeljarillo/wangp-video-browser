@@ -23,6 +23,7 @@ const state = {
   blinkMs: 0,           // 0 = manual swap only
   blinkFlip: false,     // which clip the blink stack is currently showing
   diffAll: false,       // show unchanged settings too
+  showBlank: false,     // preview: list settings WanGP left empty
 };
 
 const MAX_PICKS = 4;
@@ -47,6 +48,115 @@ const GROUPS = [
     "creation_date", "creation_timestamp"]],
 ];
 const GROUPED_KEYS = new Set(GROUPS.flatMap(([, keys]) => keys));
+/* Redundant with a friendlier key ("Created"), so never listed. */
+const HIDDEN_KEYS = new Set(["creation_timestamp"]);
+
+/* Human labels for WanGP's snake_case keys. The raw key stays available as a
+   tooltip, so nothing is hidden from people who know the settings file. */
+const LABELS = {
+  type: "Model", model_type: "Model id", base_model_type: "Base model", model_filename: "Weights",
+  settings_version: "Settings version", modules: "Modules",
+  seed: "Seed", resolution: "Resolution", video_length: "Frames", batch_size: "Batch size",
+  num_inference_steps: "Steps", guidance_scale: "Guidance", guidance2_scale: "Guidance 2",
+  guidance3_scale: "Guidance 3", embedded_guidance_scale: "Embedded guidance", guidance_phases: "Guidance phases",
+  audio_guidance_scale: "Audio guidance", flow_shift: "Flow shift", sample_solver: "Solver",
+  NAG_scale: "NAG scale", NAG_tau: "NAG tau", NAG_alpha: "NAG alpha", repeat_generation: "Repeats",
+  multi_prompts_gen_type: "Multi-prompt mode", RIFLEx_setting: "RIFLEx", denoising_strength: "Denoise strength",
+  force_fps: "Forced FPS", input_video_strength: "Input video strength",
+  skip_steps_cache_type: "Step cache", skip_steps_multiplier: "Cache multiplier",
+  skip_steps_start_step_perc: "Cache start", override_profile: "Memory profile", override_attention: "Attention",
+  activated_loras: "LoRAs", loras_multipliers: "LoRA weights",
+  sliding_window_size: "Window size", sliding_window_overlap: "Window overlap",
+  sliding_window_color_correction_strength: "Colour correction", sliding_window_overlap_noise: "Overlap noise",
+  sliding_window_discard_last_frames: "Discard last frames", sliding_window_trim_first_frames: "Trim first frames",
+  prompt: "Prompt", alt_prompt: "Alt prompt", negative_prompt: "Negative prompt",
+  image_prompt_type: "Image prompt", video_prompt_type: "Video prompt", audio_prompt_type: "Audio prompt",
+  keep_frames_video_guide: "Keep guide frames", mask_expand: "Mask expand", replace_voice_method: "Voice replace",
+  image_refs_relative_size: "Reference size", remove_background_images_ref: "Remove reference background",
+  temporal_upsampling: "Temporal upsampling", spatial_upsampling: "Spatial upsampling",
+  spatial_upsampler_prompt: "Upsampler prompt", spatial_upsampler_reference_images: "Upsampler references",
+  spatial_upsampler_param: "Upsampler param", spatial_upsampler_param2: "Upsampler param 2",
+  spatial_upsampler_parameters: "Upsampler settings", film_grain_intensity: "Film grain",
+  film_grain_saturation: "Grain saturation", postprocess_audio: "Audio post-process", video_quality: "Encoder",
+  output_filename: "Output name", config: "Config", client_id: "Client", image_mode: "Image mode",
+  generation_time: "Generation time", creation_date: "Created", creation_timestamp: "Timestamp",
+  overrides: "Overrides", custom_settings: "Custom settings", output_role: "Output role",
+};
+const labelOf = (key) => LABELS[key] || key.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+
+/* WanGP writes "nothing" many ways; none of them are worth a row. */
+const isBlank = (value) => value === null || value === undefined ||
+  (Array.isArray(value) && !value.length) ||
+  (typeof value === "object" && !Array.isArray(value) && !Object.keys(value).length) ||
+  ["", "[]", "{}", "None", "none", "null"].includes(String(value).trim());
+
+/* Some values arrive as Python reprs ("{'a': 1, 'b': True}"). Read them as data
+   when that is safe, so they can be laid out instead of shown as one blob. */
+const parseLoose = (value) => {
+  if (typeof value !== "string") return value;
+  const text = value.trim();
+  if (!/^[[{]/.test(text)) return value;
+  try { return JSON.parse(text); } catch (e) { /* fall through */ }
+  try {
+    return JSON.parse(text.replace(/'/g, "\"").replace(/\bTrue\b/g, "true")
+      .replace(/\bFalse\b/g, "false").replace(/\bNone\b/g, "null"));
+  } catch (e) { return value; }
+};
+
+const fmtSpan = (seconds) => {
+  const s = Math.round(Number(seconds));
+  if (!isFinite(s) || s <= 0) return null;
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  return h ? `${h} h ${m} min` : m ? `${m} min ${r} s` : `${r} s`;
+};
+/* "WanGP v18.84 by DeepBeepMeep - MiniMax H3 Ref2VA 20B" -> "MiniMax H3 Ref2VA 20B" */
+const modelName = (meta) => {
+  const raw = String(meta.type || "").replace(/^\s*WanGP\s+v[\d.]+\s+by\s+\S+\s*-\s*/i, "").trim();
+  return raw || meta.model_type || meta.base_model_type || "Unknown model";
+};
+const fileBase = (path) => String(path || "").split(/[\\/]/).pop();
+
+/* The one rendering of a setting value, shared by the preview and the diff. */
+function displayValue(key, raw, video) {
+  const value = parseLoose(raw);
+  if (isBlank(value)) return "—";
+  const fps = video ? fpsOf(video) : 16;
+  switch (key) {
+    case "video_length": {
+      const n = Number(value);
+      return isFinite(n) && n > 0 ? `${n} · ${(n / fps).toFixed(1)} s` : String(value);
+    }
+    case "generation_time": return fmtSpan(value) || String(value);
+    case "creation_date": {
+      const d = new Date(value);
+      return isNaN(d) ? String(value) : d.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+    }
+    case "model_filename": return fileBase(value);
+    case "type": return modelName({ type: value });
+    case "resolution": return String(value).replace("x", " × ");
+    default: break;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => (Array.isArray(item) ? item.map(fileBase).join(" ") : fileBase(item))).join(", ");
+  }
+  if (typeof value === "object") {
+    return Object.entries(value).filter(([, v]) => !isBlank(v))
+      .map(([k, v]) => `${k.replace(/_/g, " ")}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join("\n") || "—";
+  }
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return String(value);
+}
+
+/* LoRAs and their weights live in two parallel fields; read them as one list. */
+function loraList(meta) {
+  const names = parseLoose(meta.activated_loras);
+  const list = Array.isArray(names) ? names : isBlank(names) ? [] : String(names).split(/[,\n]/);
+  const weights = String(meta.loras_multipliers || "").trim().split(/\s+/).filter(Boolean);
+  return list.map((name, i) => ({
+    name: fileBase(String(name).trim()).replace(/\.safetensors$/i, ""),
+    weight: weights[i] || null,
+  })).filter((lora) => lora.name);
+}
 
 /* ---------------------------------------------------------------- helpers */
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -141,8 +251,32 @@ const truncate = (text, max) => {
   const space = cut.lastIndexOf(" ");
   return `${(space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,.;:—-]+$/, "")}…`;
 };
+/* Structured prompts ("summary:\n...\ndetailed_description:\n...") split into
+   labelled sections; anything else comes back as null. */
+/* WanGP writes labels as lowercase snake_case at the start of a line, either
+   alone ("summary:\n...") or inline ("summary: ..."). Prose rarely does. */
+const SECTION_RE = /^[ \t]*([a-z][a-z0-9]*(?:_[a-z0-9]+)*):[ \t]*/gm;
+const promptSections = (text) => {
+  const src = String(text || "");
+  const marks = [...src.matchAll(SECTION_RE)];
+  // One label counts only when it opens the text - otherwise it is just a colon in prose.
+  if (!marks.length || (marks.length < 2 && src.slice(0, marks[0].index).trim())) return null;
+  return marks.map((m, i) => ({
+    key: m[1].trim().toLowerCase().replace(/\s+/g, "_"),
+    label: m[1].replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()),
+    body: src.slice(m.index + m[0].length, i + 1 < marks.length ? marks[i + 1].index : undefined).trim(),
+  })).filter((section) => section.body);
+};
+/* The line that tells runs apart: a structured prompt's summary, not its
+   boilerplate subject definitions, which are identical across a batch. */
+const promptTitle = (text) => {
+  const sections = promptSections(text);
+  const pick = sections && (sections.find((s) => s.key === "summary")
+    || sections.find((s) => /description/.test(s.key)) || sections[0]);
+  return cleanPrompt(pick ? pick.body : text);
+};
 const shortName = (video, max = 110) => {
-  const prompt = video.meta && video.meta.prompt ? cleanPrompt(video.meta.prompt) : "";
+  const prompt = video.meta && video.meta.prompt ? promptTitle(video.meta.prompt) : "";
   return prompt ? truncate(prompt, max) : video.name;
 };
 const modelOf = (video) => (video.meta && (video.meta.model_type || video.meta.type)) || "unknown";
@@ -632,15 +766,9 @@ function renderPreview() {
   const pickIndex = state.picks.indexOf(video.id);
 
   const head = el("div", { className: "preview-head" }, [
-    el("div", { style: "min-width:0" }, [
-      el("h2", { className: "preview-title" }, shortName(video)),
-      el("div", { className: "preview-sub mono" }, dataLine([
-        meta.seed != null ? `seed ${meta.seed}` : null,
-        resolutionOf(video),
-        meta.num_inference_steps != null ? `${meta.num_inference_steps} steps` : null,
-        durationOf(video) ? `${fmtDuration(durationOf(video))} @ ${fpsOf(video)} fps` : null,
-        modelOf(video),
-      ])),
+    el("div", { className: "preview-id" }, [
+      el("div", { className: "preview-model" }, Object.keys(meta).length ? modelName(meta) : "No WanGP metadata"),
+      el("h2", { className: "preview-title" }, shortName(video, 160)),
     ]),
     el("div", { className: "preview-actions" }, [
       el("button", {
@@ -648,60 +776,138 @@ function renderPreview() {
         onclick: () => togglePick(video.id),
       }, [icon(pickIndex >= 0 ? "check" : "compare"),
         pickIndex >= 0 ? `In compare · #${pickIndex + 1}` : "Add to compare"]),
-      el("button", { onclick: () => $("#filePicker").click(), title: "Compare against a file from anywhere" },
-        [icon("drop"), "Load file"]),
+      iconButton("drop", "Compare against a file from anywhere", { onclick: () => $("#filePicker").click() }),
     ]),
   ]);
 
   const { player } = buildPlayer(video);
+  const hasMeta = Object.keys(meta).length > 0;
 
-  // File-level facts only; frames and resolution live under Generation.
-  const fileRows = [
-    ["Folder", video.external ? "(dropped file)" : (video.path || "").slice(0, -(video.name.length + 1))],
-    ["Size", fmtSize(video.size)],
-    ["Duration", `${fmtDuration(probe.duration)}${probe.fps ? ` @ ${probe.fps} fps` : ""}`],
-    ["Stream", [probe.codec, probe.width && `${probe.width}×${probe.height}`,
-      probe.bitrate && `${Math.round(probe.bitrate / 1000)} kbps`,
-      probe.has_audio ? `audio · ${probe.audio_codec}` : "no audio"].filter(Boolean).join(" · ") || "—"],
-  ];
+  /* ---- Recipe: the handful of values people re-run a clip for. Each one is
+     a click-to-copy cell, because the usual next step is pasting it into WanGP. */
+  const spec = (key, label, value, opts = {}) => {
+    if (value === null || value === undefined || value === "—" || value === "") return null;
+    return el("button", {
+      className: `spec${opts.wide ? " wide" : ""}${opts.lead ? " lead" : ""}`,
+      title: `${key} — click to copy`,
+      onclick: () => copy(String(opts.copy ?? value)),
+    }, [el("span", { className: "spec-k" }, label), el("span", { className: "spec-v" }, String(value))]);
+  };
+  const val = (key) => (meta[key] === undefined ? null : displayValue(key, meta[key], video));
+  const guidance = ["guidance_scale", "guidance2_scale", "guidance3_scale"]
+    .filter((key) => !isBlank(meta[key])).map((key) => meta[key]).join(" / ") || null;
+  const loras = loraList(meta);
 
-  // Full-width panels lead and trail so the grid never leaves a hole.
-  const panels = [];
+  const recipe = hasMeta ? el("section", { className: "sheet recipe", ariaLabel: "Recipe" }, [
+    el("h3", { className: "sheet-h" }, "Recipe"),
+    el("div", { className: "specs" }, [
+      spec("seed", "Seed", meta.seed ?? null, { lead: true }),
+      spec("num_inference_steps", "Steps", val("num_inference_steps")),
+      spec("guidance_scale", "Guidance", guidance),
+      spec("flow_shift", "Shift", val("flow_shift")),
+      spec("sample_solver", "Solver", val("sample_solver")),
+      spec("resolution", "Resolution", val("resolution"), { copy: meta.resolution }),
+      spec("video_length", "Frames", val("video_length"), { copy: meta.video_length }),
+      spec("generation_time", "Took", val("generation_time")),
+    ].filter(Boolean)),
+    loras.length ? el("div", { className: "loras" }, [
+      el("span", { className: "spec-k" }, `LoRAs · ${loras.length}`),
+      el("ul", {}, loras.map((lora) => el("li", { title: lora.name }, [
+        el("span", { className: "lora-name" }, lora.name),
+        lora.weight ? el("span", { className: "lora-w" }, `× ${lora.weight}`) : null,
+      ]))),
+    ]) : null,
+  ]) : null;
 
-  if (meta.prompt) {
-    const body = el("div", { className: "prose clamp" }, meta.prompt);
-    const expand = el("button", { className: "sm ghost", onclick: () => {
-      const open = body.classList.toggle("open");
-      expand.textContent = open ? "Collapse" : "Expand";
-    } }, "Expand");
-    panels.push(panel("Prompt", body, [expand,
-      iconButton("copy", "Copy prompt", { className: "sm ghost", onclick: () => copy(meta.prompt) })], true));
-  }
-
-  panels.push(panel("File", [
-    el("div", { className: "panel-body filename" }, video.name),
-    dl(fileRows),
-  ], [iconButton("copy", "Copy path", { className: "sm ghost", onclick: () => copy(video.path || video.name) })]));
-
-  if (Object.keys(meta).length) {
-    for (const [title, keys] of GROUPS) {
-      const rows = keys.filter((key) => key !== "prompt" && meta[key] !== undefined && meta[key] !== "" &&
-        !(Array.isArray(meta[key]) && !meta[key].length)).map((key) => [key, fmtValue(meta[key])]);
-      if (rows.length) panels.push(panel(title, dl(rows)));
+  /* ---- Prompt: prose, at a reading measure, with its siblings underneath. */
+  const promptBlock = (key, label, text, primary) => {
+    if (isBlank(text)) return null;
+    const sections = primary ? promptSections(text) : null;
+    const body = sections
+      ? el("div", { className: "prose sections" }, sections.map((section) => el("div", { className: "psec" }, [
+        el("h4", {}, section.label), el("p", {}, section.body)])))
+      : el("div", { className: `prose${primary ? "" : " minor"}` }, String(text).trim());
+    const long = String(text).length > 900;
+    if (long) body.classList.add("clamp");
+    const tools = [iconButton("copy", `Copy ${label.toLowerCase()}`, { className: "sm ghost", onclick: () => copy(String(text)) })];
+    if (long) {
+      const more = el("button", { className: "sm ghost", onclick: () => {
+        const open = body.classList.toggle("open");
+        more.textContent = open ? "Show less" : "Show all";
+      } }, "Show all");
+      tools.unshift(more);
     }
-    const other = Object.keys(meta).filter((key) => !GROUPED_KEYS.has(key)).sort();
-    if (other.length) panels.push(panel("Other", dl(other.map((key) => [key, fmtValue(meta[key])]))));
+    return el("section", { className: "sheet" }, [
+      el("div", { className: "sheet-head" }, [el("h3", { className: "sheet-h", title: key }, label), el("div", { className: "tools" }, tools)]),
+      body,
+    ]);
+  };
+  const prompts = [
+    promptBlock("prompt", "Prompt", meta.prompt, true),
+    promptBlock("negative_prompt", "Negative prompt", meta.negative_prompt),
+    promptBlock("alt_prompt", "Alt prompt", meta.alt_prompt),
+  ].filter(Boolean);
 
+  /* ---- Everything else: one quiet list. Empty values are hidden by default -
+     WanGP writes ~50 keys and most of them are blank on any given run. */
+  const shown = new Set(["seed", "num_inference_steps", "guidance_scale", "guidance2_scale", "guidance3_scale",
+    "flow_shift", "sample_solver", "resolution", "video_length", "generation_time",
+    "activated_loras", "loras_multipliers", "prompt", "negative_prompt", "alt_prompt"]);
+  const settings = el("section", { className: "sheet settings" });
+  const buildSettings = () => {
+    const groups = [...GROUPS, ["Other", Object.keys(meta).filter((key) => !GROUPED_KEYS.has(key)).sort()]];
+    let blanks = 0;
+    const blocks = [];
+    for (const [title, keys] of groups) {
+      const rows = [];
+      for (const key of keys) {
+        if (shown.has(key) || HIDDEN_KEYS.has(key) || meta[key] === undefined) continue;
+        const blank = isBlank(parseLoose(meta[key]));
+        if (blank) blanks++;
+        if (blank && !state.showBlank) continue;
+        const text = displayValue(key, meta[key], video);
+        rows.push(el("dt", { title: key }, labelOf(key)),
+          el("dd", { className: `${blank ? "blank" : ""}${text.includes("\n") ? " multi" : ""}`, title: String(meta[key]) }, text));
+      }
+      if (rows.length) blocks.push(el("div", { className: "set-group" }, [el("h4", {}, title), el("dl", { className: "kv" }, rows)]));
+    }
+    const toggle = blanks ? el("button", { className: "sm ghost", onclick: () => { state.showBlank = !state.showBlank; buildSettings(); } },
+      state.showBlank ? "Hide empty" : `Show ${blanks} empty`) : null;
     const raw = JSON.stringify(meta, null, 2);
-    panels.push(panel("Raw metadata", el("div", { className: "prose mono clamp" }, raw),
-      [iconButton("copy", "Copy JSON", { className: "sm ghost", onclick: () => copy(raw) })], true));
-  } else {
-    panels.push(panel("Metadata", el("div", { className: "panel-body note" },
-      "No WanGP metadata is embedded in this file. Enable metadata output in WanGP's settings and future clips will carry their full generation settings.")));
-  }
+    settings.replaceChildren(
+      el("div", { className: "sheet-head" }, [el("h3", { className: "sheet-h" }, "All settings"), el("div", { className: "tools" }, [toggle,
+        iconButton("copy", "Copy settings as JSON", { className: "sm ghost", onclick: () => copy(raw) })].filter(Boolean))]),
+      ...blocks,
+    );
+  };
+  if (hasMeta) buildSettings();
+
+  /* ---- File: facts about the container, one compact block at the end. */
+  const folder = video.external ? "(dropped file)" : (video.path || "").slice(0, -(video.name.length + 1));
+  const stream = [probe.codec, probe.width && `${probe.width}×${probe.height}`,
+    probe.bitrate && `${Math.round(probe.bitrate / 1000)} kbps`,
+    probe.has_audio ? `audio ${probe.audio_codec}` : "no audio"].filter(Boolean).join(" · ");
+  const file = el("section", { className: "sheet file" }, [
+    el("div", { className: "sheet-head" }, [el("h3", { className: "sheet-h" }, "File"),
+      el("div", { className: "tools" }, iconButton("copy", "Copy path", { className: "sm ghost", onclick: () => copy(video.path || video.name) }))]),
+    el("div", { className: "filename" }, video.name),
+    el("dl", { className: "kv" }, [
+      el("dt", {}, "Folder"), el("dd", { className: "path" }, folder || "—"),
+      el("dt", {}, "Size"), el("dd", {}, fmtSize(video.size)),
+      el("dt", {}, "Length"), el("dd", {}, `${fmtDuration(probe.duration)}${probe.fps ? ` at ${probe.fps} fps` : ""}`),
+      el("dt", {}, "Stream"), el("dd", {}, stream || "—"),
+    ]),
+  ]);
+
+  const noMeta = hasMeta ? null : el("section", { className: "sheet" }, [
+    el("h3", { className: "sheet-h" }, "No generation settings"),
+    el("p", { className: "note" }, "This file carries no WanGP metadata. Turn on metadata output in WanGP's settings and future clips will show their full recipe here."),
+  ]);
 
   view.replaceChildren(el("div", { className: "preview" }, [
-    head, player, el("div", { className: "panels" }, panels),
+    head,
+    el("div", { className: "preview-main" }, [player, ...prompts]),
+    el("aside", { className: "preview-side" }, [recipe, noMeta, hasMeta ? settings : null, file].filter(Boolean)),
   ]));
 }
 
@@ -1074,9 +1280,12 @@ function diffRows(videos) {
   for (const [title, keys] of ordered) {
     const rows = [];
     for (const key of keys) {
-      const values = metas.map((meta) => fmtValue(meta[key]));
+      if (HIDDEN_KEYS.has(key)) continue;
+      const values = metas.map((meta, i) => displayValue(key, meta[key], videos[i]));
       const differs = new Set(values).size > 1;
       if (!state.diffAll && !differs) continue;
+      // "All" means all settings that say something, not 30 rows of dashes.
+      if (!differs && values.every((value) => value === "—")) continue;
       rows.push({ key, values, differs });
     }
     if (rows.length) groups.push({ title, rows });
@@ -1137,7 +1346,7 @@ function diffTable(groups, videos) {
     tbody.append(el("tr", { className: "group" }, el("td", { colSpan: videos.length + 1 }, title)));
     for (const { key, values, differs } of rows) {
       tbody.append(el("tr", { className: differs ? "differs" : "" }, [
-        el("td", { className: "key" }, key),
+        el("td", { className: "key", title: key }, labelOf(key)),
         ...valueCells(key, values).map((node) => el("td", {}, node)),
       ]));
     }
@@ -1152,7 +1361,7 @@ function diffCards(groups, videos) {
     for (const { key, values, differs } of rows) {
       const cells = valueCells(key, values);
       wrap.append(el("div", { className: `diff-item${differs ? " differs" : " same"}` }, [
-        el("div", { className: "k" }, key),
+        el("div", { className: "k", title: key }, labelOf(key)),
         ...cells.map((node, index) => el("div", { className: "diff-val" }, [
           el("span", { className: "idx" }, String(index + 1)), node,
         ])),
