@@ -189,12 +189,13 @@
     };
     const group = el("input", { type: "checkbox", id: "libGroupTakes", checked: groupMode });
     group.onchange = () => setGroupMode(group.checked);
-    box.replaceChildren(
+    // replaceChildren() stringifies null ("null" text node); drop absent parts.
+    box.replaceChildren(...[
       el("label", { className: "lib-check", htmlFor: "libGroupTakes", title: "Group takes (G)" }, [group, " Group takes"]),
       el("label", { className: "lib-check", htmlFor: "libShowRejects" }, [toggle, ` Show rejects (${rejects.length})`]),
       rejects.length ? el("button", { className: "link lib-trash", onclick: () => trashRejects(rejects) },
         `Move ${rejects.length} reject${rejects.length > 1 ? "s" : ""} to trash`) : null,
-    );
+    ].filter(Boolean));
     box.hidden = !state.videos.length;
   }
 
