@@ -155,8 +155,10 @@ its default). Older or re-encoded files still appear — just with empty setting
 
 ## API
 
-The server exposes a small JSON API on the same port as the UI. Replace `7899` with
-whatever port the launcher assigned (shown in the Terminal tab on start).
+The server exposes a small JSON API on the same port as the UI. It listens on `7899` by
+default — a fixed port, so it never collides with Wan2GP's launcher-assigned one. If 7899 is
+taken it moves to the next free port and prints the address in the Terminal tab. Set
+`WANGP_BROWSER_PORT` to pick a different one.
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |

@@ -598,15 +598,28 @@ def main():
     for root in roots:
         print(f"[wangp-video-browser] indexing {root}")
 
+    # Claim the port before indexing. Pinokio hands out "the next free port" to
+    # every app it starts, so a port left unbound while a large outputs folder is
+    # indexed can be handed to Wan2GP as well. A fixed default outside Pinokio's
+    # range, with a short fallback walk if it is taken, avoids both problems.
+    server = None
+    for port in range(args.port, args.port + 20):
+        try:
+            server = ThreadingHTTPServer((args.host, port), Handler)
+            break
+        except OSError:
+            print(f"[wangp-video-browser] port {port} is busy, trying {port + 1}")
+    if server is None:
+        sys.exit(f"[wangp-video-browser] no free port in {args.port}-{args.port + 19}")
+    server.daemon_threads = True
+
     refresh_index(roots)
     with _index_lock:
         count = len(_index["videos"])
     print(f"[wangp-video-browser] indexed {count} video(s)"
           f"{'' if FFMPEG else ' (ffmpeg not found - thumbnails disabled)'}")
 
-    server = ThreadingHTTPServer((args.host, args.port), Handler)
-    server.daemon_threads = True
-    print(f"[wangp-video-browser] Running at http://{args.host}:{args.port}", flush=True)
+    print(f"[wangp-video-browser] Running at http://{args.host}:{server.server_address[1]}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
