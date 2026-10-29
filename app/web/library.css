@@ -52,3 +52,26 @@
   .lib-editor input { flex: 1; min-width: 0; height: 40px; }
   .lib-decide button { min-height: 40px; }
 }
+
+/* Take groups (P2.4) */
+.lib-take { color: var(--lab-sample); font-weight: 600; }
+.take-group {
+  display: grid; gap: 1px; padding: 2px 0 4px; border-left: 2px solid var(--hairline-2);
+}
+.take-group.open { border-left-color: var(--lab-sample); }
+.take-head { display: flex; align-items: center; gap: 4px; padding: 0 4px; }
+.take-head button { font-size: 12.5px; gap: 4px; }
+.take-head .take-compare { margin-left: auto; }
+.take-toggle .ic { transform: rotate(-90deg); transition: transform var(--dur-1, .12s) var(--ease, ease); }
+.take-toggle[aria-expanded="true"] .ic { transform: none; }
+.take-group.open .card-slot:not(.take-cover) { margin-left: 8px; }
+
+@media (max-width: 767px) {
+  .take-group { border-left: 0; border-top: 2px solid var(--hairline-2); gap: 8px; }
+  .take-group.open { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .take-group.open .take-head { grid-column: 1 / -1; }
+  .take-group.open .card-slot:not(.take-cover) { margin-left: 0; }
+  .take-head { flex-wrap: wrap; padding: 0; }
+  .take-head button { min-height: 40px; }
+  .take-head .take-compare { margin-left: 0; }
+}

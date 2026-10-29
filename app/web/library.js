@@ -8,8 +8,20 @@
 
   const NONE = "\u0000none";
   const LS_REJECTS = "wvb-show-rejects";
-  let showRejects = false;
-  try { showRejects = localStorage.getItem(LS_REJECTS) === "1"; } catch (e) { /* private mode */ }
+  const LS_GROUP = "wvb-group-takes";
+  let showRejects = false, groupMode = false;
+  try {
+    showRejects = localStorage.getItem(LS_REJECTS) === "1";
+    groupMode = localStorage.getItem(LS_GROUP) === "1";
+  } catch (e) { /* private mode */ }
+  const expanded = new Set();   // take-group keys the user opened
+
+  /* P2.4: take numbers over the whole library, recomputed when it changes. */
+  let numbersFor = null, numbers = new Map();
+  const takeOf = (video) => {
+    if (numbersFor !== state.videos) { numbers = WVBTakes.takeNumbers(state.videos); numbersFor = state.videos; }
+    return numbers.get(video.id);
+  };
 
   const lib = (video) => (video && video.lib) || {};
   const STAR_PATH = "M8 1.9l1.8 3.9 4.2.5-3.1 2.9.8 4.2L8 11.3l-3.7 2.1.8-4.2L2 6.3l4.2-.5z";
@@ -85,6 +97,8 @@
     card.dataset.id = video.id;
     if (item.status) card.classList.add(`lib-${item.status}`);
     const parts = [];
+    const take = takeOf(video);
+    if (take && take.of > 1) parts.push(el("span", { className: "lib-take", title: "Same prompt and model, different seed" }, `Take ${take.take} of ${take.of}`));
     if (item.rating) {
       parts.push(el("span", { className: "lib-stars", title: `${item.rating} of 5` },
         [1, 2, 3, 4, 5].map((n) => star(n <= item.rating))));
@@ -173,7 +187,10 @@
       try { localStorage.setItem(LS_REJECTS, showRejects ? "1" : "0"); } catch (e) { /* ignore */ }
       renderList();
     };
+    const group = el("input", { type: "checkbox", id: "libGroupTakes", checked: groupMode });
+    group.onchange = () => setGroupMode(group.checked);
     box.replaceChildren(
+      el("label", { className: "lib-check", htmlFor: "libGroupTakes", title: "Group takes (G)" }, [group, " Group takes"]),
       el("label", { className: "lib-check", htmlFor: "libShowRejects" }, [toggle, ` Show rejects (${rejects.length})`]),
       rejects.length ? el("button", { className: "link lib-trash", onclick: () => trashRejects(rejects) },
         `Move ${rejects.length} reject${rejects.length > 1 ? "s" : ""} to trash`) : null,
@@ -215,12 +232,60 @@
       .then(() => { if (after) select(after); });
   }
 
+  /* Next/previous clip as laid out on screen (collapsed take groups skip). */
   function neighbour(id, step) {
-    const list = visibleVideos();
-    const index = list.findIndex((v) => v.id === id);
-    const next = list[index + step];
-    return next ? next.id : null;
+    const ids = [...document.querySelectorAll("#list .card[data-id]")].map((c) => c.dataset.id);
+    const index = ids.indexOf(id);
+    return index < 0 ? ids[0] || null : ids[index + step] || null;
   }
+
+  /* ---- take groups (P2.4) */
+  function setGroupMode(on) {
+    groupMode = on;
+    try { localStorage.setItem(LS_GROUP, on ? "1" : "0"); } catch (e) { /* ignore */ }
+    renderList();
+  }
+
+  function compareTakes(group) {
+    state.picks = WVBTakes.compareSet(group, MAX_PICKS);
+    if (group.count > MAX_PICKS) flash(`Comparing the best ${MAX_PICKS} of ${group.count} takes`);
+    setView("compare");
+    renderAll();
+  }
+
+  function slot(video, extra) {
+    const node = buildCard(video);
+    node.removeAttribute("role");
+    if (extra) node.classList.add(extra);
+    return node;
+  }
+
+  function renderGroups(baseRenderList) {
+    const videos = visibleVideos();
+    if (!videos.length) return baseRenderList();
+    endScrub();
+    const nodes = WVBTakes.groupTakes(videos).map((group) => {
+      if (group.count === 1) return buildCard(group.takes[0]);
+      const open = expanded.has(group.key);
+      const toggle = el("button", {
+        className: "ghost sm take-toggle", ariaExpanded: String(open),
+        title: open ? "Show only the best take" : "Show every take",
+        onclick: () => {
+          if (open) expanded.delete(group.key); else expanded.add(group.key);
+          renderList();
+          const again = [...document.querySelectorAll("#list .take-group")].find((n) => n.dataset.key === group.key);
+          if (again) again.querySelector(".take-toggle").focus();
+        },
+      }, [icon("down"), `${group.count} takes`]);
+      const compare = el("button", { className: "ghost sm take-compare", onclick: () => compareTakes(group) },
+        [icon("compare"), "Compare all takes"]);
+      const cards = open ? group.takes.map((v) => slot(v, v === group.cover ? "take-cover" : "")) : [slot(group.cover, "take-cover")];
+      return el("div", { className: `take-group${open ? " open" : ""}`, role: "listitem", ariaLabel: `${group.count} takes`, dataset: { key: group.key } },
+        [el("div", { className: "take-head" }, [toggle, compare]), ...cards]);
+    });
+    $("#list").replaceChildren(...nodes);
+  }
+
 
   function focusCard(id) {
     const card = document.querySelector(`#list .card[data-id="${CSS.escape(id)}"]`);
@@ -240,7 +305,7 @@
   };
 
   /* Keyboard triage: 1-5 rate (again to clear), 0 clear, K keep, X reject
-     (both advance to the next clip), T tag, C collection, Up/Down or J
+     (both advance to the next clip), T tag, C collection, G group takes, Up/Down or J
      move through the list. Compare view keeps its own keys. */
   document.addEventListener("keydown", (event) => {
     if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
@@ -251,6 +316,7 @@
     if (!video || video.external) return;
     const key = event.key.toLowerCase();
     if (/^[0-5]$/.test(key)) { event.preventDefault(); setRating(id, Number(key)); }
+    else if (key === "g") { event.preventDefault(); setGroupMode(!groupMode); }
     else if (key === "k") { event.preventDefault(); setStatus(id, "keep", true); }
     else if (key === "x") { event.preventDefault(); setStatus(id, "reject", true); }
     else if (key === "t" || key === "c") {
@@ -274,5 +340,8 @@
 
   // Every list render (load, rescan, filter) also refreshes the reject tools.
   const baseRenderList = renderList;
-  renderList = function () { baseRenderList(); renderTools(); };
+  renderList = function () {
+    if (groupMode && window.WVBTakes) renderGroups(baseRenderList); else baseRenderList();
+    renderTools();
+  };
 })();
