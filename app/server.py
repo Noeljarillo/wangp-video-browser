@@ -30,6 +30,7 @@ from pathlib import Path
 
 import analysis_host
 import characters_api
+import defects_host
 import detections_api
 import export_compare
 import export_settings
@@ -615,6 +616,10 @@ class Handler(BaseHTTPRequestHandler):
                 by_path = {v["path"]: v for v in _index["videos"]}
             q = urllib.parse.parse_qs(parsed.query).get("q", [""])[0]
             return self._send_json(semantic_host.search(q, by_path))
+        if route == "/api/defects":
+            with _index_lock:
+                entries = list(_index["videos"])
+            return self._send_json(defects_host.payload(entries))
         if route == "/api/tags":
             with _index_lock:
                 entries = list(_index["videos"])

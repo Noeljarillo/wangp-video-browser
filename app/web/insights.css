@@ -1,0 +1,40 @@
+/* P5.2 Insights view: plain SVG charts, one takeaway line per chart (C1). */
+.ins-head { padding: 4px 2px 14px; }
+.ins-head h2 { margin: 0 0 4px; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.ins-head p { margin: 0; color: var(--ink-3); font-size: 12.5px; max-width: 68ch; }
+
+.ins-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 12px;
+  padding-bottom: 24px;
+}
+.ins-card {
+  background: var(--panel, #17171b);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 10px 12px 8px;
+}
+.ins-card h3 {
+  margin: 0 0 4px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.ins-chart { width: 100%; height: auto; display: block; }
+.ins-rule { stroke: var(--hairline); stroke-width: 1; }
+.ins-axis { fill: var(--ink-3); font-size: 9.5px; font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.ins-note { fill: var(--ink-4, #6b6b75); font-size: 8.5px; font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.ins-bar { fill: #6f7cff; opacity: .85; }
+.ins-bar.kept { fill: #4bd39b; }
+.ins-bar.rejected { fill: #ff6f7a; }
+.ins-take { margin: 6px 2px 2px; font-size: 12px; line-height: 1.4; color: var(--ink-2, #c9c9d2); }
+.ins-take.ins-empty { color: var(--ink-4, #6b6b75); }
+
+@media (max-width: 767px) {
+  .ins-grid { grid-template-columns: 1fr; }
+  .ins-head p { font-size: 12px; }
+}

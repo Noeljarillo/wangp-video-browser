@@ -36,6 +36,8 @@
 <link rel="stylesheet" href="/static/semantic.css">
 <link rel="stylesheet" href="/static/detections.css">
 <link rel="stylesheet" href="/static/characters.css">
+<link rel="stylesheet" href="/static/defects.css">
+<link rel="stylesheet" href="/static/insights.css">
 </head>
 <body>
 
@@ -89,6 +91,7 @@
     <button class="tab" role="tab" id="tab-folders" aria-controls="view-folders" data-view="folders" aria-selected="false">Folders</button>
     <button class="tab" role="tab" id="tab-timeline" aria-controls="view-timeline" data-view="timeline" aria-selected="false">Timeline</button>
     <button class="tab" role="tab" id="tab-characters" aria-controls="view-characters" data-view="characters" aria-selected="false">Characters</button>
+    <button class="tab" role="tab" id="tab-insights" aria-controls="view-insights" data-view="insights" aria-selected="false">Insights</button>
   </nav>
 
   <div class="spacer"></div>
@@ -143,6 +146,7 @@
     <div class="view" id="view-folders" role="tabpanel" aria-labelledby="tab-folders" tabindex="0"></div>
     <div class="view" id="view-timeline" role="tabpanel" aria-labelledby="tab-timeline" tabindex="0"></div>
     <div class="view" id="view-characters" role="tabpanel" aria-labelledby="tab-characters" tabindex="0"></div>
+    <div class="view" id="view-insights" role="tabpanel" aria-labelledby="tab-insights" tabindex="0"></div>
   </section>
 </main>
 
@@ -159,6 +163,9 @@
   </button>
   <button class="tabbar-btn" role="tab" aria-controls="view-timeline" data-view="timeline" aria-selected="false">
     <svg viewBox="0 0 16 16" class="ic"><use href="#i-loop"/></svg><span>Timeline</span>
+  </button>
+  <button class="tabbar-btn" role="tab" aria-controls="view-insights" data-view="insights" aria-selected="false">
+    <svg viewBox="0 0 16 16" class="ic"><use href="#i-image"/></svg><span>Insights</span>
   </button>
   <button class="tabbar-btn" role="tab" aria-controls="view-characters" data-view="characters" aria-selected="false">
     <svg viewBox="0 0 16 16" class="ic"><use href="#i-image"/></svg><span>Characters</span>
@@ -191,5 +198,7 @@
 <script src="/static/analysis.js"></script>
 <script src="/static/semantic.js"></script>
 <script src="/static/tags.js"></script>
+<script src="/static/defects.js"></script>
+<script src="/static/insights.js"></script>
 </body>
 </html>

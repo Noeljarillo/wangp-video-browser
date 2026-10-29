@@ -478,6 +478,7 @@ function buildCard(video) {
   if (durationOf(video)) thumb.append(el("span", { className: "thumb-dur" }, fmtClock(durationOf(video))));
   attachScrub(thumb, video);
   if (window.WVBFilm) WVBFilm.decorateThumb(thumb, video);
+  if (window.WVBDefects) WVBDefects.decorateThumb(thumb, video);
 
   const pick = el("button", {
     className: `pick${pickIndex >= 0 ? " on" : ""}`,
@@ -1582,7 +1583,7 @@ function renderAll() {
   setView(state.view);
   // Emptying the views we're leaving detaches their <video> elements, which
   // both frees the decoders and lets their transport loops fall out of rAF.
-  for (const id of ["preview", "compare", "folders", "timeline", "characters"]) {
+  for (const id of ["preview", "compare", "folders", "timeline", "characters", "insights"]) {
     if (id !== state.view) $(`#view-${id}`).replaceChildren();
   }
   if (state.view !== "compare") stopCompare();
@@ -1592,6 +1593,7 @@ function renderAll() {
   else if (state.view === "compare") renderCompare();
   else if (state.view === "timeline") { if (window.WVBTimeline) WVBTimeline.render(); }
   else if (state.view === "characters") { if (window.WVB_CHAR) WVB_CHAR.render(); }
+  else if (state.view === "insights") { if (window.WVBInsights) WVBInsights.render(); }
   else renderFolders();
 }
 
