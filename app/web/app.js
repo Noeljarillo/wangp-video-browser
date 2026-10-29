@@ -476,6 +476,7 @@ function buildCard(video) {
   thumb.append(el("i", { className: "scrubline" }));
   if (durationOf(video)) thumb.append(el("span", { className: "thumb-dur" }, fmtClock(durationOf(video))));
   attachScrub(thumb, video);
+  if (window.WVBFilm) WVBFilm.decorateThumb(thumb, video);
 
   const pick = el("button", {
     className: `pick${pickIndex >= 0 ? " on" : ""}`,
@@ -979,7 +980,7 @@ function renderPreview() {
 
   view.replaceChildren(el("div", { className: "preview" }, [
     head,
-    el("div", { className: "preview-main" }, [player, ...prompts]),
+    el("div", { className: "preview-main" }, [player, window.WVBFilm ? WVBFilm.previewStrip(player, video) : null, ...prompts]),
     el("aside", { className: "preview-side" }, [recipe, noMeta, hasMeta ? settings : null, file].filter(Boolean)),
   ]));
 }

@@ -31,6 +31,7 @@ from pathlib import Path
 import library
 import metadata as meta_reader
 import watcher
+from filmstrip import Filmstrips
 
 APP_DIR = Path(__file__).resolve().parent
 WEB_DIR = APP_DIR / "web"
@@ -78,6 +79,7 @@ def resolve_media_tool(name):
 
 FFPROBE = resolve_media_tool("ffprobe")
 FFMPEG = resolve_media_tool("ffmpeg")
+filmstrips = Filmstrips(CACHE_DIR / "filmstrips", FFMPEG)  # P2.2, lazy + queued
 
 
 # ---------------------------------------------------------------------------
@@ -583,6 +585,15 @@ class Handler(BaseHTTPRequestHandler):
             if not thumb:
                 return self._send_json({"error": "no thumbnail"}, 404)
             return self._send_file(thumb, "image/jpeg", cache="private, max-age=86400")
+
+        if route.startswith("/filmstrip/"):
+            entry = find_video(route[len("/filmstrip/"):])
+            if not entry:
+                return self._send_json({"error": "unknown video"}, 404)
+            status, sprite = filmstrips.status(entry)
+            if sprite:
+                return self._send_file(sprite, "image/jpeg", cache="private, max-age=86400")
+            return self._send_json({"status": status, "fallback": "poster"}, 202 if status == "queued" else 404)
 
         if route.startswith("/static/"):
             target = (WEB_DIR / route[len("/static/"):]).resolve()
