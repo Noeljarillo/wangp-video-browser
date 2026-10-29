@@ -10,3 +10,5 @@ onnxruntime; sys_platform == "darwin"
 opencv-python-headless
 transformers
 safetensors
+# P3.3 character clustering
+scikit-learn

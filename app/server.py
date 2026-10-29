@@ -29,6 +29,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import analysis_host
+import characters_api
 import detections_api
 import export_compare
 import export_settings
@@ -597,6 +598,13 @@ class Handler(BaseHTTPRequestHandler):
         if route.startswith("/api/analysis/detections/"):
             entry = find_video(route[len("/api/analysis/detections/"):])
             return self._send_json(detections_api.detections(entry)) if entry else self._send_json({"error": "unknown video"}, 404)
+        if route == "/api/characters":
+            with _index_lock:
+                entries = list(_index["videos"])
+            return self._send_json(characters_api.listing(entries))
+        if route.startswith("/api/characters/avatar/"):
+            avatar = characters_api.avatar_path(route[len("/api/characters/avatar/"):])
+            return self._send_file(avatar, "image/jpeg", cache="no-cache") if avatar else self._send_json({"error": "not found"}, 404)
         if route.startswith("/api/analysis/crop/"):
             vid, _, n_text = route[len("/api/analysis/crop/"):].partition("/")
             crop = detections_api.crop_path(find_video(vid), n_text)
@@ -714,6 +722,16 @@ class Handler(BaseHTTPRequestHandler):
                 roots = [Path(r) for r in _index["roots"] if r != target]
             refresh_index(roots)
             return self._send_json(self._public_index())
+
+        if parsed.path == "/api/characters/action":
+            with _index_lock:
+                entries = list(_index["videos"])
+            try:
+                return self._send_json(characters_api.action(payload, entries))
+            except (TypeError, ValueError) as error:
+                return self._send_json({"error": str(error)}, 400)
+        if parsed.path == "/api/characters/recluster":
+            return self._send_json(characters_api.recluster())
 
         if parsed.path.startswith("/api/library/"):
             return self._library_route(parsed.path, payload)

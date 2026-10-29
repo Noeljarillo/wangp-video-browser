@@ -35,6 +35,7 @@
 <link rel="stylesheet" href="/static/analysis.css">
 <link rel="stylesheet" href="/static/semantic.css">
 <link rel="stylesheet" href="/static/detections.css">
+<link rel="stylesheet" href="/static/characters.css">
 </head>
 <body>
 
@@ -87,6 +88,7 @@
     <button class="tab" role="tab" id="tab-compare" aria-controls="view-compare" data-view="compare" aria-selected="false">Compare<span class="tab-count" id="cmpCount" hidden>0</span></button>
     <button class="tab" role="tab" id="tab-folders" aria-controls="view-folders" data-view="folders" aria-selected="false">Folders</button>
     <button class="tab" role="tab" id="tab-timeline" aria-controls="view-timeline" data-view="timeline" aria-selected="false">Timeline</button>
+    <button class="tab" role="tab" id="tab-characters" aria-controls="view-characters" data-view="characters" aria-selected="false">Characters</button>
   </nav>
 
   <div class="spacer"></div>
@@ -140,6 +142,7 @@
     <div class="view" id="view-compare" role="tabpanel" aria-labelledby="tab-compare" tabindex="0"></div>
     <div class="view" id="view-folders" role="tabpanel" aria-labelledby="tab-folders" tabindex="0"></div>
     <div class="view" id="view-timeline" role="tabpanel" aria-labelledby="tab-timeline" tabindex="0"></div>
+    <div class="view" id="view-characters" role="tabpanel" aria-labelledby="tab-characters" tabindex="0"></div>
   </section>
 </main>
 
@@ -157,6 +160,9 @@
   <button class="tabbar-btn" role="tab" aria-controls="view-timeline" data-view="timeline" aria-selected="false">
     <svg viewBox="0 0 16 16" class="ic"><use href="#i-loop"/></svg><span>Timeline</span>
   </button>
+  <button class="tabbar-btn" role="tab" aria-controls="view-characters" data-view="characters" aria-selected="false">
+    <svg viewBox="0 0 16 16" class="ic"><use href="#i-image"/></svg><span>Characters</span>
+  </button>
 </nav>
 
 <div id="dropveil" aria-hidden="true">
@@ -171,6 +177,7 @@
 <script src="/static/export-compare.js"></script>
 <script src="/static/diffmap.js"></script>
 <script src="/static/detections.js"></script>
+<script src="/static/characters.js"></script>
 <script src="/static/app.js"></script>
 <script src="/static/takes.js"></script>
 <script src="/static/library.js"></script>

@@ -420,7 +420,7 @@ const renderModelFilter = renderFacets;
 
 function visibleVideos() {
   const query = $("#search").value.trim().toLowerCase();
-  const pool = state.videos.filter((video) => facetMatch(video) && !(window.WVB_LIB && WVB_LIB.hidden(video)));
+  const pool = state.videos.filter((video) => facetMatch(video) && !(window.WVB_LIB && WVB_LIB.hidden(video)) && !(window.WVB_CHAR && WVB_CHAR.hidden(video)));
   const list = pool.filter((video) => {
     if (!query) return true;
     const haystack = [video.name, JSON.stringify(video.meta || {})].join(" ").toLowerCase();
@@ -520,6 +520,7 @@ function buildCard(video) {
     ]),
   ]);
   if (window.WVB_LIB) WVB_LIB.decorateCard(card, video);
+  if (window.WVB_CHAR) WVB_CHAR.decorateCard(card, video);
   return el("div", { className: "card-slot", role: "listitem" }, [card, pick]);
 }
 
@@ -1581,7 +1582,7 @@ function renderAll() {
   setView(state.view);
   // Emptying the views we're leaving detaches their <video> elements, which
   // both frees the decoders and lets their transport loops fall out of rAF.
-  for (const id of ["preview", "compare", "folders", "timeline"]) {
+  for (const id of ["preview", "compare", "folders", "timeline", "characters"]) {
     if (id !== state.view) $(`#view-${id}`).replaceChildren();
   }
   if (state.view !== "compare") stopCompare();
@@ -1590,6 +1591,7 @@ function renderAll() {
   if (state.view === "preview") renderPreview();
   else if (state.view === "compare") renderCompare();
   else if (state.view === "timeline") { if (window.WVBTimeline) WVBTimeline.render(); }
+  else if (state.view === "characters") { if (window.WVB_CHAR) WVB_CHAR.render(); }
   else renderFolders();
 }
 
