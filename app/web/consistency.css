@@ -1,0 +1,58 @@
+/* P3.4 / P3.5: reference consistency chip, plot and drift marks. */
+.cons-chip {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 4px;
+  background: rgba(24, 24, 28, .82);
+  border: 1px solid rgba(255, 255, 255, .16);
+  color: var(--lab-text, #e8e8ea);
+  backdrop-filter: blur(4px);
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+.cons-chip.good { border-color: rgba(75, 211, 155, .55); color: #7fe6b6; }
+.cons-chip.mixed { border-color: rgba(255, 190, 107, .55); color: #ffcf85; }
+.cons-chip.poor { border-color: rgba(255, 111, 122, .55); color: #ff9aa2; }
+.cons-drift { color: #ff9aa2; border-left: 1px solid rgba(255, 255, 255, .18); padding-left: 5px; }
+
+.cons-panel {
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--panel, #17171b);
+  padding: 8px 10px 6px;
+}
+.cons-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.cons-head .cons-chip { position: static; }
+.cons-title {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.cons-plot { width: 100%; height: 64px; display: block; }
+.cons-bar { fill: #6f7cff; opacity: .8; }
+.cons-bar.drift { fill: #ff6f7a; opacity: .95; }
+.cons-threshold { stroke: var(--hairline-2, #33333a); stroke-width: 1; stroke-dasharray: 3 3; }
+.cons-refs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.cons-ref {
+  font-size: 11px;
+  color: var(--ink-2, #c9c9d2);
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+  padding: 1px 5px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cons-note { font-size: 11.5px; color: var(--ink-4, #6b6b75); margin-top: 4px; }
+@media (max-width: 767px) {
+  .cons-plot { height: 52px; }
+}

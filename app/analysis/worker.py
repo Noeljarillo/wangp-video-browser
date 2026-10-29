@@ -16,9 +16,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from analysis import characters, faces, frames, gpu, jobqueue  # noqa: E402
 
 try:  # needs numpy / torch from the add-on venv
-    from analysis import defects, semantic, tags
+    from analysis import captions, consistency, defects, semantic, tags
 except ImportError:  # dev mode on the core interpreter
-    defects = semantic = tags = None
+    captions = consistency = defects = semantic = tags = None
 
 
 def run_noop(job, ctx):
@@ -30,6 +30,11 @@ HANDLERS = {"noop": run_noop, "frames": frames.run_job, "faces": faces.run_job,
 NEEDS_GPU = {"faces"}
 if defects:
     HANDLERS["defects"] = defects.run_job
+if consistency:
+    HANDLERS["consistency"] = consistency.run_job
+    NEEDS_GPU.add("consistency")
+if captions:                       # opt-in: the handler no-ops until a model is configured
+    HANDLERS["captions"] = captions.run_job
 if semantic:
     HANDLERS["semantic"] = semantic.run_job
     NEEDS_GPU.add("semantic")

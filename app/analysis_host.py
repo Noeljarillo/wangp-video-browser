@@ -23,7 +23,7 @@ STALE_AFTER = 15  # seconds without a worker heartbeat
 
 # Job kinds enqueued for every clip, in order. "frames" (P3.1) feeds every later
 # analyser; "noop" (the scaffold's smoke test) can be added via ANALYSIS_KINDS.
-KINDS = [k for k in os.environ.get("ANALYSIS_KINDS", "frames,faces,semantic,tags,defects").split(",") if k.strip()]
+KINDS = [k for k in os.environ.get("ANALYSIS_KINDS", "frames,faces,semantic,tags,defects,consistency").split(",") if k.strip()]
 
 _lock = threading.Lock()
 _proc = None
@@ -103,6 +103,16 @@ def stop():
         _proc.terminate()
 
 
+def _refs(entry):
+    """The clip's P1.3 input references (existing files only) for the consistency pass."""
+    try:
+        import inputs  # core module; imported lazily so this file stays import-light
+        return [{"name": ref.get("name"), "path": ref.get("_path")}
+                for ref in inputs.collect(entry) if ref.get("exists") and ref.get("_path")]
+    except Exception:  # noqa: BLE001 - a reference problem must never block analysis
+        return []
+
+
 def enqueue_entries(entries):
     """Queue every kind for every clip; unchanged files are skipped by key (C6)."""
     if not installed() or not entries:
@@ -115,7 +125,8 @@ def enqueue_entries(entries):
             continue
         probe = entry.get("probe") or {}
         items.append({"path": entry["path"], "size": entry["size"], "mtime_ns": mtime_ns,
-                      "payload": {"duration": probe.get("duration"), "fps": probe.get("fps")}})
+                      "payload": {"duration": probe.get("duration"), "fps": probe.get("fps"),
+                                  "refs": _refs(entry)}})
     jq = _jobqueue()
     conn = jq.connect(DB_PATH)
     try:

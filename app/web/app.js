@@ -435,6 +435,7 @@ function visibleVideos() {
     size: (a, b) => b.size - a.size,
     duration: (a, b) => durationOf(b) - durationOf(a),
     gentime: (a, b) => ((b.meta || {}).generation_time || 0) - ((a.meta || {}).generation_time || 0),
+    ...(window.WVB_SORTS || {}),   // optional analysers add their own orderings (P3.4)
   }[$("#sort").value];
   return list.sort(by);
 }
@@ -479,6 +480,7 @@ function buildCard(video) {
   attachScrub(thumb, video);
   if (window.WVBFilm) WVBFilm.decorateThumb(thumb, video);
   if (window.WVBDefects) WVBDefects.decorateThumb(thumb, video);
+  if (window.WVBConsistency) WVBConsistency.decorateThumb(thumb, video);
 
   const pick = el("button", {
     className: `pick${pickIndex >= 0 ? " on" : ""}`,
@@ -986,7 +988,7 @@ function renderPreview() {
 
   view.replaceChildren(el("div", { className: "preview" }, [
     head,
-    el("div", { className: "preview-main" }, [player, window.WVBFilm ? WVBFilm.previewStrip(player, video) : null, window.WVB_INPUTS ? WVB_INPUTS.strip(video) : null, ...prompts].filter(Boolean)),
+    el("div", { className: "preview-main" }, [player, window.WVBFilm ? WVBFilm.previewStrip(player, video) : null, window.WVB_INPUTS ? WVB_INPUTS.strip(video) : null, window.WVBConsistency ? WVBConsistency.panel(video) : null, ...prompts].filter(Boolean)),
     el("aside", { className: "preview-side" }, [recipe, noMeta, hasMeta ? settings : null, file].filter(Boolean)),
   ]));
 }
