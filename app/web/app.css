@@ -924,7 +924,7 @@ body.dragging #dropveil { display: grid; }
     background: transparent; border-color: transparent; box-shadow: none;
     color: var(--ink-2); min-height: 40px; padding: 0 10px 0 6px;
   }
-  body[data-view="compare"] .sheet-back, body[data-view="folders"] .sheet-back { display: none; }
+  body[data-view="compare"] .sheet-back, body[data-view="folders"] .sheet-back, body[data-view="timeline"] .sheet-back { display: none; }
   .view { padding: 10px 12px calc(80px + env(safe-area-inset-bottom)); }
 
   .preview { gap: 16px; }

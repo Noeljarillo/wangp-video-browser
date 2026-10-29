@@ -234,7 +234,8 @@
 
   /* Next/previous clip as laid out on screen (collapsed take groups skip). */
   function neighbour(id, step) {
-    const ids = [...document.querySelectorAll("#list .card[data-id]")].map((c) => c.dataset.id);
+    // The list is virtual, so ask it for the layout order rather than the DOM.
+    const ids = window.WVBGrid ? WVBGrid.order() : [...document.querySelectorAll("#list .card[data-id]")].map((c) => c.dataset.id);
     const index = ids.indexOf(id);
     return index < 0 ? ids[0] || null : ids[index + step] || null;
   }
@@ -264,30 +265,37 @@
     const videos = visibleVideos();
     if (!videos.length) return baseRenderList();
     endScrub();
-    const nodes = WVBTakes.groupTakes(videos).map((group) => {
-      if (group.count === 1) return buildCard(group.takes[0]);
+    const entries = WVBTakes.groupTakes(videos).map((group) => {
+      if (group.count === 1) return { key: group.takes[0].id, ids: [group.takes[0].id], build: () => buildCard(group.takes[0]) };
       const open = expanded.has(group.key);
-      const toggle = el("button", {
-        className: "ghost sm take-toggle", ariaExpanded: String(open),
-        title: open ? "Show only the best take" : "Show every take",
-        onclick: () => {
-          if (open) expanded.delete(group.key); else expanded.add(group.key);
-          renderList();
-          const again = [...document.querySelectorAll("#list .take-group")].find((n) => n.dataset.key === group.key);
-          if (again) again.querySelector(".take-toggle").focus();
-        },
-      }, [icon("down"), `${group.count} takes`]);
-      const compare = el("button", { className: "ghost sm take-compare", onclick: () => compareTakes(group) },
-        [icon("compare"), "Compare all takes"]);
-      const cards = open ? group.takes.map((v) => slot(v, v === group.cover ? "take-cover" : "")) : [slot(group.cover, "take-cover")];
-      return el("div", { className: `take-group${open ? " open" : ""}`, role: "listitem", ariaLabel: `${group.count} takes`, dataset: { key: group.key } },
-        [el("div", { className: "take-head" }, [toggle, compare]), ...cards]);
+      const shown = open ? group.takes : [group.cover];
+      return { key: `g:${group.key}:${open ? 1 : 0}`, ids: shown.map((v) => v.id), span: open, build: () => groupNode(group, open) };
     });
-    $("#list").replaceChildren(...nodes);
+    if (window.WVBGrid) WVBGrid.render(entries);
+    else $("#list").replaceChildren(...entries.map((e) => e.build()));
+  }
+
+  function groupNode(group, open) {
+    const toggle = el("button", {
+      className: "ghost sm take-toggle", ariaExpanded: String(open),
+      title: open ? "Show only the best take" : "Show every take",
+      onclick: () => {
+        if (open) expanded.delete(group.key); else expanded.add(group.key);
+        renderList();
+        const again = [...document.querySelectorAll("#list .take-group")].find((n) => n.dataset.key === group.key);
+        if (again) again.querySelector(".take-toggle").focus();
+      },
+    }, [icon("down"), `${group.count} takes`]);
+    const compare = el("button", { className: "ghost sm take-compare", onclick: () => compareTakes(group) },
+      [icon("compare"), "Compare all takes"]);
+    const cards = open ? group.takes.map((v) => slot(v, v === group.cover ? "take-cover" : "")) : [slot(group.cover, "take-cover")];
+    return el("div", { className: `take-group${open ? " open" : ""}`, role: "listitem", ariaLabel: `${group.count} takes`, dataset: { key: group.key } },
+      [el("div", { className: "take-head" }, [toggle, compare]), ...cards]);
   }
 
 
   function focusCard(id) {
+    if (window.WVBGrid) WVBGrid.reveal(id);
     const card = document.querySelector(`#list .card[data-id="${CSS.escape(id)}"]`);
     if (card) { card.focus({ preventScroll: true }); card.scrollIntoView({ block: "nearest" }); }
   }
