@@ -858,6 +858,7 @@ function renderPreview() {
   if (typeof decoratePreviewHead === "function") decoratePreviewHead(head, video);
 
   const { player } = buildPlayer(video);
+  if (window.WVB_DET) WVB_DET.attach(player, video);
   const hasMeta = Object.keys(meta).length > 0;
 
   /* ---- Recipe. No headings and no boxes: each value is set in its category's

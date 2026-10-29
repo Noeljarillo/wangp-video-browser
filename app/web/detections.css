@@ -1,0 +1,21 @@
+/* P3.2 detections overlay on the preview player */
+.det-layer { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.det-box {
+  position: absolute; border: 2px solid var(--lab-sample); border-radius: 4px;
+  box-sizing: border-box;
+}
+.det-box.det-person { border-color: var(--lab-shape); border-style: dashed; }
+.det-box span {
+  position: absolute; left: -2px; top: -18px; padding: 0 4px; font: 600 11px/16px "IBM Plex Mono", monospace;
+  color: #fff; background: var(--lab-sample); border-radius: 4px 4px 0 0; white-space: nowrap;
+}
+.det-box.det-person span { background: var(--lab-shape); top: auto; bottom: -2px; border-radius: 0 0 4px 4px; transform: translateY(100%); }
+.det-toggle {
+  position: absolute; top: 8px; right: 8px; z-index: 3; height: 26px; padding: 0 10px;
+  font: 600 12px/1 "Source Sans 3", sans-serif; color: #fff; background: rgba(0, 0, 0, .55);
+  border: 1px solid rgba(255, 255, 255, .25); border-radius: 4px; cursor: pointer;
+}
+.det-toggle:hover { background: rgba(0, 0, 0, .75); }
+.det-toggle.on { border-color: var(--lab-sample); color: #fff; }
+.det-toggle:focus-visible { outline: 2px solid var(--lab-sample); outline-offset: 2px; }
+@media (max-width: 767px) { .det-toggle { top: 6px; right: 6px; height: 30px; } }

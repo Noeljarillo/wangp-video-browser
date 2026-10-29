@@ -6,3 +6,7 @@ numpy
 pillow
 onnxruntime-gpu; sys_platform != "darwin"
 onnxruntime; sys_platform == "darwin"
+# P3.2 faces / people (models: docs/MODELS.md)
+opencv-python-headless
+transformers
+safetensors

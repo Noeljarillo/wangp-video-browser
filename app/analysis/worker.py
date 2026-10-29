@@ -13,15 +13,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from analysis import frames, gpu, jobqueue  # noqa: E402
+from analysis import faces, frames, gpu, jobqueue  # noqa: E402
 
 
 def run_noop(job, ctx):
     return {"ok": True}
 
 
-HANDLERS = {"noop": run_noop, "frames": frames.run_job}
-NEEDS_GPU = set()
+HANDLERS = {"noop": run_noop, "frames": frames.run_job, "faces": faces.run_job}
+NEEDS_GPU = {"faces"}
 
 
 def _parent_alive(pid):
@@ -98,7 +98,7 @@ def main():
     parser.add_argument("--poll", type=float, default=1.0)
     parser.add_argument("--vram-mb", type=int, default=gpu.DEFAULT_VRAM_CAP_MB)
     args = parser.parse_args()
-    ctx = {"cache": Path(args.cache), "ffmpeg": args.ffmpeg or None}
+    ctx = {"cache": Path(args.cache), "ffmpeg": args.ffmpeg or None, "db": args.db, "vram_mb": args.vram_mb}
     print(f"[analysis] worker {os.getpid()} on {args.db}", flush=True)
     Worker(args.db, ctx=ctx, gate=gpu.Gate(vram_cap_mb=args.vram_mb), poll=args.poll,
            parent=args.parent or None).run()

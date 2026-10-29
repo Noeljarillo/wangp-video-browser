@@ -29,6 +29,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import analysis_host
+import detections_api
 import export_compare
 import export_settings
 import inputs
@@ -592,6 +593,13 @@ class Handler(BaseHTTPRequestHandler):
             return watcher.serve_sse(self, events)
         if route == "/api/analysis/status":
             return self._send_json(analysis_host.status())
+        if route.startswith("/api/analysis/detections/"):
+            entry = find_video(route[len("/api/analysis/detections/"):])
+            return self._send_json(detections_api.detections(entry)) if entry else self._send_json({"error": "unknown video"}, 404)
+        if route.startswith("/api/analysis/crop/"):
+            vid, _, n_text = route[len("/api/analysis/crop/"):].partition("/")
+            crop = detections_api.crop_path(find_video(vid), n_text)
+            return self._send_file(crop, "image/jpeg", cache="private, max-age=86400") if crop else self._send_json({"error": "not found"}, 404)
 
         if route == "/api/rescan":
             refresh_index()
