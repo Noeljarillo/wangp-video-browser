@@ -33,6 +33,8 @@ import export_settings
 import inputs
 import library
 import metadata as meta_reader
+import watcher
+from filmstrip import Filmstrips
 
 APP_DIR = Path(__file__).resolve().parent
 WEB_DIR = APP_DIR / "web"
@@ -80,6 +82,7 @@ def resolve_media_tool(name):
 
 FFPROBE = resolve_media_tool("ffprobe")
 FFMPEG = resolve_media_tool("ffmpeg")
+filmstrips = Filmstrips(CACHE_DIR / "filmstrips", FFMPEG)  # P2.2, lazy + queued
 
 
 # ---------------------------------------------------------------------------
@@ -404,6 +407,43 @@ def refresh_index(roots=None):
         return dict(_index)
 
 
+def public_entry(entry):
+    return dict({k: v for k, v in entry.items() if k != "cache_key"}, lib=library.get(entry.get("cid")))
+
+
+# Live watch folder (P1.5): new renders are indexed incrementally and pushed
+# to the UI over SSE (GET /events).
+events = watcher.EventHub()
+
+
+def apply_changes(added, removed):
+    cache = _load_cache()
+    with _index_lock:
+        known = {v["path"] for v in _index["videos"]}
+    fresh = []
+    for path, root in added:
+        if path in known:
+            continue
+        try:
+            fresh.append(build_entry(Path(path), Path(root), cache))
+        except (OSError, ValueError) as error:
+            print(f"[wangp-video-browser] skipped a file: {error}", file=sys.stderr)
+    gone = set(removed)
+    with _index_lock:
+        removed_ids = [v["id"] for v in _index["videos"] if v["path"] in gone]
+        videos = [v for v in _index["videos"] if v["path"] not in gone] + fresh
+        videos.sort(key=lambda item: item["mtime"], reverse=True)
+        _index["videos"] = videos
+        _save_cache(videos)
+    if fresh or removed_ids:
+        events.publish({"type": "change", "added": [public_entry(e) for e in fresh], "removed": removed_ids})
+
+
+def current_roots():
+    with _index_lock:
+        return list(_index["roots"])
+
+
 def find_video(video_id_value):
     with _index_lock:
         return next((v for v in _index["videos"] if v["id"] == video_id_value), None)
@@ -521,8 +561,7 @@ class Handler(BaseHTTPRequestHandler):
     def _public_index(self):
         with _index_lock:
             return {
-                "videos": [dict({k: v for k, v in entry.items() if k != "cache_key"}, lib=library.get(entry.get("cid")))
-                           for entry in _index["videos"]],
+                "videos": [public_entry(entry) for entry in _index["videos"]],
                 "roots": list(_index["roots"]),
                 "scanned_at": _index["scanned_at"],
                 "ffmpeg": bool(FFMPEG),
@@ -539,6 +578,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if route == "/api/videos":
             return self._send_json(self._public_index())
+
+        if route == "/events":
+            return watcher.serve_sse(self, events)
 
         if route == "/api/rescan":
             refresh_index()
@@ -597,6 +639,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json({"error": "not found"}, 404)
             return self._send_file(target, cache="private, max-age=3600",
                                    headers={"Content-Disposition": f'attachment; filename="{target.name}"'})
+        if route.startswith("/filmstrip/"):
+            entry = find_video(route[len("/filmstrip/"):])
+            if not entry:
+                return self._send_json({"error": "unknown video"}, 404)
+            status, sprite = filmstrips.status(entry)
+            if sprite:
+                return self._send_file(sprite, "image/jpeg", cache="private, max-age=86400")
+            return self._send_json({"status": status, "fallback": "poster"}, 202 if status == "queued" else 404)
 
         if route.startswith("/static/"):
             target = (WEB_DIR / route[len("/static/"):]).resolve()
@@ -718,6 +768,7 @@ def main():
     print(f"[wangp-video-browser] indexed {count} video(s)"
           f"{'' if FFMPEG else ' (ffmpeg not found - thumbnails disabled)'}")
 
+    watcher.FolderWatcher(current_roots, apply_changes, VIDEO_EXTENSIONS, SKIP_DIR_NAMES).start()
     print(f"[wangp-video-browser] Running at http://{args.host}:{server.server_address[1]}", flush=True)
     try:
         server.serve_forever()
