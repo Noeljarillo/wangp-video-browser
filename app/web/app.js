@@ -80,7 +80,7 @@ const LABELS = {
   film_grain_saturation: "Grain saturation", postprocess_audio: "Audio post-process", video_quality: "Encoder",
   output_filename: "Output name", config: "Config", client_id: "Client", image_mode: "Image mode",
   generation_time: "Generation time", creation_date: "Created", creation_timestamp: "Timestamp",
-  overrides: "Overrides", custom_settings: "Custom settings", output_role: "Output role",
+  overrides: "Overrides", custom_settings: "Custom settings", output_role: "Output role", num_inference_steps2: "Steps (phase 2)",
 };
 const labelOf = (key) => LABELS[key] || key.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
@@ -145,6 +145,21 @@ function displayValue(key, raw, video) {
   }
   if (typeof value === "boolean") return value ? "Yes" : "No";
   return String(value);
+}
+
+/* WanGP's placeholders (<Subject 1>, [Shot 2]) are references, not words -
+   set them as quiet tokens so the sentence around them reads normally. */
+const TOKEN_RE = /<((?:Subject|Picture|Image|Video|Audio)\s*\d+)>|\[((?:Shot|Scene)\s*\d+)\]/g;
+function placeholders(text) {
+  const out = [];
+  let last = 0;
+  for (const m of String(text).matchAll(TOKEN_RE)) {
+    if (m.index > last) out.push(String(text).slice(last, m.index));
+    out.push(el("span", { className: "tok" }, m[1] || m[2]));
+    last = m.index + m[0].length;
+  }
+  out.push(String(text).slice(last));
+  return out;
 }
 
 /* LoRAs and their weights live in two parallel fields; read them as one list. */
@@ -243,6 +258,7 @@ const cleanPrompt = (text) => String(text || "")
   .replace(/^\s*(?:\[[^\]]*\]\s*)+/, "")
   .replace(/^\s*[\w-]*description\s*:\s*/i, "")
   .replace(/^\s*(?:\[[^\]]*\]\s*)+/, "")
+  .replace(/<((?:Subject|Picture|Image|Video|Audio)\s*\d+)>/g, "$1")
   .trim();
 /* Cutting mid-word reads like a bug, so back up to the last space. */
 const truncate = (text, max) => {
@@ -439,15 +455,11 @@ function buildCard(video) {
     el("div", { className: "card-body" }, [
       el("div", { className: "card-title" }, shortName(video)),
       el("div", { className: "card-data" }, dataLine([
-        meta.seed != null ? el("span", { className: "seed" }, String(meta.seed)) : null,
-        resolutionOf(video),
-        meta.num_inference_steps != null ? `${meta.num_inference_steps} steps` : null,
-        durationOf(video) ? fmtDuration(durationOf(video)) : null,
+        meta.seed != null ? el("span", { className: "c-seed" }, String(meta.seed)) : null,
+        resolutionOf(video) ? el("span", { className: "c-shape" }, String(resolutionOf(video)).replace("x", "×")) : null,
+        meta.num_inference_steps != null ? el("span", { className: "c-sample" }, `${meta.num_inference_steps} steps`) : null,
       ])),
-      el("div", { className: "card-foot" }, [
-        el("span", { className: "model", title: modelOf(video) }, modelOf(video)),
-        el("span", { className: "when" }, `${when} · ${fmtSize(video.size)}`),
-      ]),
+      el("div", { className: "card-foot", title: Object.keys(meta).length ? modelName(meta) : "" }, `${when} · ${fmtSize(video.size)}`),
     ]),
   ]);
   return el("div", { className: "card-slot", role: "listitem" }, [card, pick]);
@@ -772,74 +784,78 @@ function renderPreview() {
     ]),
     el("div", { className: "preview-actions" }, [
       el("button", {
-        className: pickIndex >= 0 ? "" : "accent",
+        className: `ghost${pickIndex >= 0 ? " on" : ""}`,
         onclick: () => togglePick(video.id),
       }, [icon(pickIndex >= 0 ? "check" : "compare"),
-        pickIndex >= 0 ? `In compare · #${pickIndex + 1}` : "Add to compare"]),
-      iconButton("drop", "Compare against a file from anywhere", { onclick: () => $("#filePicker").click() }),
+        pickIndex >= 0 ? `In compare · ${pickIndex + 1}` : "Compare"]),
+      iconButton("drop", "Compare against a file from anywhere", { className: "ghost", onclick: () => $("#filePicker").click() }),
     ]),
   ]);
 
   const { player } = buildPlayer(video);
   const hasMeta = Object.keys(meta).length > 0;
 
-  /* ---- Recipe: the handful of values people re-run a clip for. Each one is
-     a click-to-copy cell, because the usual next step is pasting it into WanGP. */
-  const spec = (key, label, value, opts = {}) => {
+  /* ---- Recipe. No headings and no boxes: each value is set in its category's
+     colour with a quiet word after it, and copies itself on click. */
+  const fact = (key, value, unit, cat, copyValue) => {
     if (value === null || value === undefined || value === "—" || value === "") return null;
     return el("button", {
-      className: `spec${opts.wide ? " wide" : ""}${opts.lead ? " lead" : ""}`,
-      title: `${key} — click to copy`,
-      onclick: () => copy(String(opts.copy ?? value)),
-    }, [el("span", { className: "spec-k" }, label), el("span", { className: "spec-v" }, String(value))]);
+      className: `fact c-${cat}`, title: `${labelOf(key)} — click to copy`,
+      onclick: () => copy(String(copyValue ?? value)),
+    }, [el("b", {}, String(value)), unit ? el("span", {}, unit) : null]);
   };
   const val = (key) => (meta[key] === undefined ? null : displayValue(key, meta[key], video));
   const guidance = ["guidance_scale", "guidance2_scale", "guidance3_scale"]
     .filter((key) => !isBlank(meta[key])).map((key) => meta[key]).join(" / ") || null;
+  const frames = Number(meta.video_length);
   const loras = loraList(meta);
 
-  const recipe = hasMeta ? el("section", { className: "sheet recipe", ariaLabel: "Recipe" }, [
-    el("h3", { className: "sheet-h" }, "Recipe"),
-    el("div", { className: "specs" }, [
-      spec("seed", "Seed", meta.seed ?? null, { lead: true }),
-      spec("num_inference_steps", "Steps", val("num_inference_steps")),
-      spec("guidance_scale", "Guidance", guidance),
-      spec("flow_shift", "Shift", val("flow_shift")),
-      spec("sample_solver", "Solver", val("sample_solver")),
-      spec("resolution", "Resolution", val("resolution"), { copy: meta.resolution }),
-      spec("video_length", "Frames", val("video_length"), { copy: meta.video_length }),
-      spec("generation_time", "Took", val("generation_time")),
+  const recipe = hasMeta ? el("div", { className: "recipe" }, [
+    meta.seed != null ? el("button", { className: "seed c-seed", title: "Seed — click to copy", onclick: () => copy(String(meta.seed)) },
+      [el("b", {}, String(meta.seed)), el("span", {}, "seed")]) : null,
+    el("div", { className: "facts" }, [
+      fact("num_inference_steps", val("num_inference_steps"), "steps", "sample"),
+      fact("guidance_scale", guidance, "guidance", "sample"),
+      fact("flow_shift", val("flow_shift"), "shift", "sample"),
+      fact("sample_solver", val("sample_solver"), "solver", "sample"),
+      fact("resolution", meta.resolution ? String(meta.resolution).replace("x", "×") : null, null, "shape", meta.resolution),
+      fact("video_length", isFinite(frames) && frames > 0 ? frames : null,
+        `frames · ${(frames / fpsOf(video)).toFixed(1)} s`, "shape"),
+      fact("generation_time", val("generation_time"), "to render", "time", meta.generation_time),
     ].filter(Boolean)),
-    loras.length ? el("div", { className: "loras" }, [
-      el("span", { className: "spec-k" }, `LoRAs · ${loras.length}`),
-      el("ul", {}, loras.map((lora) => el("li", { title: lora.name }, [
-        el("span", { className: "lora-name" }, lora.name),
-        lora.weight ? el("span", { className: "lora-w" }, `× ${lora.weight}`) : null,
-      ]))),
-    ]) : null,
+    loras.length ? el("ul", { className: "loras" }, loras.map((lora) => el("li", { className: "c-lora", title: lora.name }, [
+      el("span", { className: "lora-name" }, lora.name),
+      lora.weight ? el("span", { className: "lora-w" }, `× ${lora.weight}`) : null,
+    ]))) : null,
   ]) : null;
 
-  /* ---- Prompt: prose, at a reading measure, with its siblings underneath. */
+  /* ---- Prompt. Sections are told apart by a coloured rule, not a heading;
+     the summary leads because it is what distinguishes one run from the next. */
+  const SECTION_ORDER = ["summary", "detailed_description", "subject_definitions", "retention_analysis"];
+  const sectionCat = (key) => (key === "summary" ? "seed" : /description/.test(key) ? "sample"
+    : /subject|retention/.test(key) ? "lora" : /sound|music|audio/.test(key) ? "time" : "shape");
   const promptBlock = (key, label, text, primary) => {
     if (isBlank(text)) return null;
-    const sections = primary ? promptSections(text) : null;
+    let sections = primary ? promptSections(text) : null;
+    if (sections) {
+      const rank = (s) => { const i = SECTION_ORDER.indexOf(s.key); return i < 0 ? 99 : i; };
+      sections = sections.filter((s) => !/^n\/?a\.?$/i.test(s.body)).sort((x, y) => rank(x) - rank(y));
+    }
     const body = sections
-      ? el("div", { className: "prose sections" }, sections.map((section) => el("div", { className: "psec" }, [
-        el("h4", {}, section.label), el("p", {}, section.body)])))
-      : el("div", { className: `prose${primary ? "" : " minor"}` }, String(text).trim());
+      ? el("div", { className: "prose sections" }, sections.map((section) => el("p", {
+        className: `psec c-${sectionCat(section.key)}${section.key === "summary" ? " lead" : ""}`, title: section.label,
+      }, placeholders(section.body.replace(/^\s*(?:\[[^\]]*generation[^\]]*\]\s*)+/i, "")))))
+      : el("div", { className: `prose${primary ? "" : " minor"}`, title: label }, placeholders(String(text).trim()));
     const long = String(text).length > 900;
     if (long) body.classList.add("clamp");
-    const tools = [iconButton("copy", `Copy ${label.toLowerCase()}`, { className: "sm ghost", onclick: () => copy(String(text)) })];
-    if (long) {
-      const more = el("button", { className: "sm ghost", onclick: () => {
-        const open = body.classList.toggle("open");
-        more.textContent = open ? "Show less" : "Show all";
-      } }, "Show all");
-      tools.unshift(more);
-    }
-    return el("section", { className: "sheet" }, [
-      el("div", { className: "sheet-head" }, [el("h3", { className: "sheet-h", title: key }, label), el("div", { className: "tools" }, tools)]),
-      body,
+    const more = long ? el("button", { className: "link", onclick: () => {
+      const open = body.classList.toggle("open");
+      more.textContent = open ? "Show less" : "Show full prompt";
+    } }, "Show full prompt") : null;
+    return el("section", { className: `prompt${primary ? "" : " minor"}` }, [
+      primary ? null : el("div", { className: "neg-mark" }, label),
+      iconButton("copy", `Copy ${label.toLowerCase()}`, { className: "sm ghost corner", onclick: () => copy(String(text)) }),
+      body, more,
     ]);
   };
   const prompts = [
@@ -848,61 +864,55 @@ function renderPreview() {
     promptBlock("alt_prompt", "Alt prompt", meta.alt_prompt),
   ].filter(Boolean);
 
-  /* ---- Everything else: one quiet list. Empty values are hidden by default -
-     WanGP writes ~50 keys and most of them are blank on any given run. */
+  /* ---- Everything else: one list, group shown by a coloured dot rather than a
+     heading. Blank values (most of WanGP's ~50 keys on any run) stay hidden. */
+  const GROUP_CAT = { "Model": "model", "Generation": "sample", "Speed / cache": "time", "LoRAs": "lora",
+    "Sliding window": "shape", "Prompt / inputs": "lora", "Post-processing": "post", "Output": "time", "Other": "model" };
   const shown = new Set(["seed", "num_inference_steps", "guidance_scale", "guidance2_scale", "guidance3_scale",
-    "flow_shift", "sample_solver", "resolution", "video_length", "generation_time",
+    "flow_shift", "sample_solver", "resolution", "video_length", "generation_time", "type",
     "activated_loras", "loras_multipliers", "prompt", "negative_prompt", "alt_prompt"]);
-  const settings = el("section", { className: "sheet settings" });
+  const settings = el("div", { className: "settings" });
   const buildSettings = () => {
     const groups = [...GROUPS, ["Other", Object.keys(meta).filter((key) => !GROUPED_KEYS.has(key)).sort()]];
     let blanks = 0;
-    const blocks = [];
+    const rows = [];
     for (const [title, keys] of groups) {
-      const rows = [];
       for (const key of keys) {
         if (shown.has(key) || HIDDEN_KEYS.has(key) || meta[key] === undefined) continue;
         const blank = isBlank(parseLoose(meta[key]));
         if (blank) blanks++;
         if (blank && !state.showBlank) continue;
-        const text = displayValue(key, meta[key], video);
-        rows.push(el("dt", { title: key }, labelOf(key)),
+        let text = displayValue(key, meta[key], video);
+        if (/^\S{28,}$/.test(text)) text = text.replace(/([_\-.])/g, "$1\u200b");
+        rows.push(el("dt", { className: `c-${GROUP_CAT[title] || "model"}`, title: `${title} · ${key}` }, labelOf(key)),
           el("dd", { className: `${blank ? "blank" : ""}${text.includes("\n") ? " multi" : ""}`, title: String(meta[key]) }, text));
       }
-      if (rows.length) blocks.push(el("div", { className: "set-group" }, [el("h4", {}, title), el("dl", { className: "kv" }, rows)]));
     }
-    const toggle = blanks ? el("button", { className: "sm ghost", onclick: () => { state.showBlank = !state.showBlank; buildSettings(); } },
-      state.showBlank ? "Hide empty" : `Show ${blanks} empty`) : null;
     const raw = JSON.stringify(meta, null, 2);
     settings.replaceChildren(
-      el("div", { className: "sheet-head" }, [el("h3", { className: "sheet-h" }, "All settings"), el("div", { className: "tools" }, [toggle,
-        iconButton("copy", "Copy settings as JSON", { className: "sm ghost", onclick: () => copy(raw) })].filter(Boolean))]),
-      ...blocks,
+      el("dl", { className: "kv" }, rows),
+      el("div", { className: "links" }, [
+        blanks ? el("button", { className: "link", onclick: () => { state.showBlank = !state.showBlank; buildSettings(); } },
+          state.showBlank ? "Hide empty settings" : `Show ${blanks} empty settings`) : null,
+        el("button", { className: "link", onclick: () => copy(raw) }, "Copy as JSON"),
+      ]),
     );
   };
   if (hasMeta) buildSettings();
 
-  /* ---- File: facts about the container, one compact block at the end. */
+  /* ---- File: a footnote, not a section. */
   const folder = video.external ? "(dropped file)" : (video.path || "").slice(0, -(video.name.length + 1));
-  const stream = [probe.codec, probe.width && `${probe.width}×${probe.height}`,
-    probe.bitrate && `${Math.round(probe.bitrate / 1000)} kbps`,
+  const stream = [fmtSize(video.size), `${fmtDuration(probe.duration)}${probe.fps ? ` @ ${probe.fps} fps` : ""}`,
+    probe.codec, probe.bitrate && `${Math.round(probe.bitrate / 1000)} kbps`,
     probe.has_audio ? `audio ${probe.audio_codec}` : "no audio"].filter(Boolean).join(" · ");
-  const file = el("section", { className: "sheet file" }, [
-    el("div", { className: "sheet-head" }, [el("h3", { className: "sheet-h" }, "File"),
-      el("div", { className: "tools" }, iconButton("copy", "Copy path", { className: "sm ghost", onclick: () => copy(video.path || video.name) }))]),
-    el("div", { className: "filename" }, video.name),
-    el("dl", { className: "kv" }, [
-      el("dt", {}, "Folder"), el("dd", { className: "path" }, folder || "—"),
-      el("dt", {}, "Size"), el("dd", {}, fmtSize(video.size)),
-      el("dt", {}, "Length"), el("dd", {}, `${fmtDuration(probe.duration)}${probe.fps ? ` at ${probe.fps} fps` : ""}`),
-      el("dt", {}, "Stream"), el("dd", {}, stream || "—"),
-    ]),
+  const file = el("div", { className: "file" }, [
+    el("button", { className: "filename", title: "Copy full path", onclick: () => copy(video.path || video.name) }, video.name),
+    el("div", { className: "file-path", title: folder }, folder),
+    el("div", { className: "file-meta" }, stream),
   ]);
 
-  const noMeta = hasMeta ? null : el("section", { className: "sheet" }, [
-    el("h3", { className: "sheet-h" }, "No generation settings"),
-    el("p", { className: "note" }, "This file carries no WanGP metadata. Turn on metadata output in WanGP's settings and future clips will show their full recipe here."),
-  ]);
+  const noMeta = hasMeta ? null : el("p", { className: "note" },
+    "This file carries no WanGP metadata. Turn on metadata output in WanGP's settings and future clips will show their full recipe here.");
 
   view.replaceChildren(el("div", { className: "preview" }, [
     head,
@@ -949,11 +959,11 @@ function toggleBlink() { state.blinkFlip = !state.blinkFlip; syncBlinkTags(); }
 function clipData(video) {
   const meta = video.meta || {};
   return dataLine([
-    meta.seed != null ? el("span", { className: "seed" }, String(meta.seed)) : null,
-    resolutionOf(video),
-    meta.num_inference_steps != null ? `${meta.num_inference_steps} steps` : null,
-    durationOf(video) ? fmtDuration(durationOf(video)) : null,
-    modelOf(video),
+    meta.seed != null ? el("span", { className: "c-seed" }, String(meta.seed)) : null,
+    resolutionOf(video) ? el("span", { className: "c-shape" }, String(resolutionOf(video)).replace("x", "×")) : null,
+    meta.num_inference_steps != null ? el("span", { className: "c-sample" }, `${meta.num_inference_steps} steps`) : null,
+    durationOf(video) ? el("span", { className: "c-time" }, fmtDuration(durationOf(video))) : null,
+    Object.keys(meta).length ? modelName(meta) : null,
   ]);
 }
 
@@ -1569,7 +1579,7 @@ $("#themeToggle").onclick = () => {
   const root = document.documentElement;
   // With no explicit choice yet, resolve what the system is actually showing
   // and flip away from that.
-  const current = root.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const current = root.dataset.theme || "dark"; // dark unless the user chose light
   const next = current === "dark" ? "light" : "dark";
   root.dataset.theme = next;
   try { localStorage.setItem("wvb-theme", next); } catch (e) { /* ignore */ }

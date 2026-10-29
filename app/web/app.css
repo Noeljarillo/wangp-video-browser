@@ -539,96 +539,120 @@ body.resizing iframe, body.resizing video { pointer-events: none; }
 .tc .frame { opacity: .68; }
 
 /* -------------------------------------------------------------- preview
-   One clip, read like a spec sheet: footage and prompt on the left, the recipe
-   on the right. No cards - hairlines and type carry the structure. */
+   One clip as a pro-app inspector: footage and prompt on the left, the
+   recipe and settings in a panel on the right. Colour carries category, so
+   there are no section headings and no boxes around values. */
 .view { container-type: inline-size; }
-.preview { max-width: 1440px; margin: 0 auto; display: grid; gap: 18px 28px; grid-template-columns: minmax(0, 1fr); }
-.preview-head { display: flex; align-items: flex-end; gap: 16px; }
-.preview-id { min-width: 0; display: grid; gap: 4px; }
-.preview-model { font-size: 12.5px; font-weight: 600; color: var(--accent-ink); letter-spacing: .01em; }
+.preview { max-width: 1520px; margin: 0 auto; display: grid; gap: 16px 20px; grid-template-columns: minmax(0, 1fr); }
+.preview-head { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.preview-id { min-width: 0; display: grid; gap: 2px; }
+.preview-model { font-size: 12px; font-weight: 600; color: var(--ink-3); }
 .preview-title {
-  font-size: 18px; font-weight: 600; letter-spacing: -.015em; line-height: 1.35; color: var(--ink);
-  min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  font-size: 18px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.preview-actions { margin-left: auto; display: flex; gap: 6px; flex: none; }
-.preview-main, .preview-side { display: grid; gap: 22px; align-content: start; min-width: 0; }
-
-@container (min-width: 980px) {
-  .preview { grid-template-columns: minmax(0, 1fr) minmax(340px, 400px); }
+.preview-actions { margin-left: auto; display: flex; gap: 4px; flex: none; }
+.preview-actions button.on { color: var(--accent-ink); }
+.preview-main, .preview-side { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.preview-side {
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md);
+  padding: 16px; gap: 18px;
+}
+@container (min-width: 1000px) {
+  .preview { grid-template-columns: minmax(0, 1fr) minmax(330px, 380px); }
   .preview-head { grid-column: 1 / -1; }
 }
 
-.sheet { display: grid; gap: 10px; min-width: 0; }
-.sheet-head { display: flex; align-items: center; gap: 8px; min-height: 28px; }
-.sheet-head .tools { margin-left: auto; display: flex; gap: 2px; }
-.sheet-h {
-  font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3);
-}
-.recipe > .sheet-h { line-height: 28px; }
+/* Category colours, borrowed from an editor's clip labels. */
+.c-seed   { --cat: var(--lab-seed); }
+.c-sample { --cat: var(--lab-sample); }
+.c-shape  { --cat: var(--lab-shape); }
+.c-time   { --cat: var(--lab-time); }
+.c-lora   { --cat: var(--lab-lora); }
+.c-post   { --cat: var(--lab-post); }
+.c-model  { --cat: var(--lab-model); }
 
-/* Recipe: a ruled grid of the values people re-run a clip for. */
-.specs {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 14px;
-  border-top: 1px solid var(--hairline-2);
+/* Recipe */
+.recipe { display: grid; gap: 12px; }
+.seed, .fact {
+  all: unset; box-sizing: border-box; cursor: copy; min-width: 0;
+  display: flex; align-items: baseline; gap: 6px; border-radius: 4px;
 }
-.spec {
-  all: unset; box-sizing: border-box; cursor: copy;
-  display: grid; gap: 1px; align-content: start; min-width: 0;
-  padding: 9px 0 10px; border-bottom: 1px solid var(--hairline);
+.seed b {
+  font-size: 26px; font-weight: 600; letter-spacing: -.02em; line-height: 1.1;
+  color: var(--cat); font-variant-numeric: tabular-nums;
 }
-.spec.lead { grid-column: 1 / -1; }
-.spec:hover .spec-v { color: var(--accent-ink); }
-.spec:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.spec-k { font-size: 11.5px; color: var(--ink-3); }
-.spec-v {
-  font-size: 15px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  transition: color var(--dur-1) var(--ease);
+.seed span, .fact span { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+.fact b {
+  font-size: 15px; font-weight: 600; color: var(--cat); font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
 }
-.spec.lead .spec-v { font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+.seed:hover b, .fact:hover b { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.seed:focus-visible, .fact:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.loras { display: grid; gap: 4px; padding-top: 2px; }
-.loras ul { list-style: none; margin: 0; padding: 0; }
-.loras li { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--hairline); font-size: 13px; }
-.lora-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lora-w { margin-left: auto; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.loras { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.loras li { display: flex; gap: 10px; font-size: 13px; padding-left: 10px; position: relative; }
+.loras li::before {
+  content: ""; position: absolute; left: 0; top: .55em; width: 4px; height: 4px; border-radius: 50%; background: var(--cat);
+}
+.lora-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.lora-w { margin-left: auto; color: var(--cat); font-weight: 600; font-variant-numeric: tabular-nums; }
 
-/* Settings: one list, grouped by a quiet heading, values in the reading face. */
-.set-group { display: grid; gap: 2px; }
-.set-group h4 { margin: 6px 0 0; font-size: 12.5px; font-weight: 600; color: var(--ink); }
-.kv { display: grid; grid-template-columns: minmax(110px, 44%) minmax(0, 1fr); margin: 0; }
-.kv dt, .kv dd { margin: 0; padding: 6px 0; min-width: 0; border-bottom: 1px solid var(--hairline); }
-.kv dt { font-size: 12.5px; color: var(--ink-3); padding-right: 12px; }
-.kv dd { font-size: 13px; color: var(--ink); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+/* Settings: label tinted by group, value in plain ink. */
+.settings { display: grid; gap: 8px; border-top: 1px solid var(--hairline); padding-top: 14px; }
+.kv { display: grid; grid-template-columns: minmax(104px, 42%) minmax(0, 1fr); gap: 5px 12px; margin: 0; }
+.kv dt, .kv dd { margin: 0; min-width: 0; font-size: 12.5px; line-height: 1.45; }
+.kv dt { color: var(--cat, var(--ink-3)); font-weight: 500; }
+.kv dd { color: var(--ink); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .kv dd.multi { white-space: pre-line; }
 .kv dd.blank { color: var(--ink-3); }
-.kv dd.path { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
-
-.filename { font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; color: var(--ink-2); }
-/* A measure, not a container width - 140-character lines are unreadable no
-   matter how wide the window is. */
-.prose {
-  font-size: 14.5px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere;
-  color: var(--ink); max-width: 72ch;
+.links { display: flex; gap: 14px; flex-wrap: wrap; }
+button.link {
+  all: unset; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--accent-ink);
 }
-.prose.minor { font-size: 13px; color: var(--ink-2); }
-.prose.sections { white-space: normal; display: grid; gap: 12px; }
-.psec h4 { margin: 0 0 2px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
-.psec p { margin: 0; white-space: pre-wrap; }
-.prose.sections.clamp { display: grid; -webkit-line-clamp: unset; max-height: 21em; overflow: hidden;
-  mask-image: linear-gradient(to bottom, #000 75%, transparent); }
-.prose.sections.clamp.open { max-height: none; mask-image: none; }
-.prose.mono { font-size: 11.5px; line-height: 1.6; color: var(--ink-2); max-width: none; }
+button.link:hover { text-decoration: underline; text-underline-offset: 3px; }
+button.link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+/* File: a footnote. */
+.file { display: grid; gap: 2px; border-top: 1px solid var(--hairline); padding-top: 14px; min-width: 0; }
+.file .filename {
+  all: unset; cursor: copy; font-family: var(--mono); font-size: 11.5px; line-height: 1.5;
+  color: var(--ink); overflow-wrap: anywhere;
+}
+.file .filename:hover { color: var(--accent-ink); }
+.file-path { font-family: var(--mono); font-size: 11px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.file-meta { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* Prompt: prose with a coloured rule per section instead of a heading. */
+.prompt { position: relative; min-width: 0; padding-right: 32px; }
+.prompt .corner { position: absolute; top: -4px; right: 0; }
+.prompt.minor { padding-top: 12px; border-top: 1px solid var(--hairline); }
+.neg-mark { font-size: 12px; font-weight: 600; color: var(--lab-post); margin-bottom: 4px; }
+.prose {
+  font-size: 14.5px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere;
+  color: var(--ink-2); max-width: 76ch;
+}
+.prose.minor { font-size: 13px; color: var(--ink-3); }
+.prose.mono { font-family: var(--mono); font-size: 11.5px; line-height: 1.6; color: var(--ink-2); max-width: none; }
+.prose.sections { white-space: normal; display: grid; gap: 10px; }
+.psec { margin: 0; padding-left: 12px; border-left: 2px solid var(--cat); white-space: pre-wrap; }
+.psec.lead { font-size: 16px; line-height: 1.5; color: var(--ink); font-weight: 500; }
+.tok {
+  font-size: .86em; font-weight: 600; color: var(--lab-lora); white-space: nowrap;
+}
 .clamp { display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden; }
 .clamp.open { -webkit-line-clamp: unset; }
+.prose.sections.clamp { display: grid; max-height: 22em; overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 70%, transparent); }
+.prose.sections.clamp.open { max-height: none; mask-image: none; }
+.prompt > button.link { margin-top: 6px; }
+.note { font-size: 13px; color: var(--ink-3); margin: 0; }
 
-/* Kept for the compare view's settings-diff panel. */
+/* Compare view's settings-diff panel. */
 .panel { background: var(--surface); border-radius: var(--r-md); border: 1px solid var(--hairline); overflow: hidden; }
-.panel-head {
-  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
-  border-bottom: 1px solid var(--hairline);
-}
-.panel-head h3 { font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.panel-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--hairline); }
+.panel-head h3 { font-size: 12px; font-weight: 600; color: var(--ink-2); }
 .panel-head .tools { margin-left: auto; display: flex; gap: 4px; }
 .panel-body { padding: 10px 12px; }
 
@@ -990,3 +1014,115 @@ body.dragging #dropveil { display: grid; }
     transition-duration: .01ms !important; scroll-behavior: auto !important;
   }
 }
+
+
+/* ============================================================== pro skin
+   Modelled on Adobe's pro video apps (Spectrum dark): neutral greys with no
+   tint, panels one step lighter than the frame, 4px corners, a single blue
+   for interaction, and clip-label colours for data. Source Sans 3 is Adobe's
+   own open-source UI face. Dark is the default, as in the apps. */
+@font-face {
+  font-family: "Source Sans 3";
+  src: url("/static/fonts/source-sans-3-latin-var.woff2") format("woff2-variations");
+  font-weight: 200 900;
+  font-display: swap;
+}
+:root {
+  --sans: "Source Sans 3", "Adobe Clean", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r-sm: 4px; --r-md: 6px; --r-lg: 8px;
+  --topbar-h: 48px;
+
+  --canvas: #f0f0f0; --surface: #fafafa; --surface-2: #e9e9e9; --surface-3: #dcdcdc;
+  --hairline: #dadada; --hairline-2: #b3b3b3;
+  --ink: #1d1d1d; --ink-2: #464646; --ink-3: #6e6e6e;
+  --accent: #1473e6; --accent-ink: #0d66d0; --accent-soft: #e2edfc; --accent-soft-2: #c4dbfa; --accent-line: #8bb6ef;
+  --on-accent: #ffffff;
+  --lab-seed: #c66c00; --lab-sample: #0f78c2; --lab-shape: #12805c; --lab-time: #8a6d00;
+  --lab-lora: #7e4ccf; --lab-post: #c03772; --lab-model: #6e6e6e;
+  --shadow-1: none;
+  --shadow-2: 0 1px 4px rgba(0, 0, 0, .15);
+  --shadow-3: 0 4px 16px rgba(0, 0, 0, .2);
+}
+:root:not([data-theme="light"]) {
+  --canvas: #1d1d1d; --surface: #252525; --surface-2: #2f2f2f; --surface-3: #3a3a3a;
+  --hairline: #343434; --hairline-2: #4a4a4a;
+  --ink: #e8e8e8; --ink-2: #bdbdbd; --ink-3: #8e8e8e;
+  --accent: #378ef0; --accent-ink: #5aa9fa; --accent-soft: #1b2b40; --accent-soft-2: #213a5a; --accent-line: #2d5f99;
+  --on-accent: #ffffff;
+  --well: #0f0f0f;
+  --rail: #5c5c5c; --rail-buf: #7a7a7a;
+  --lab-seed: #f5a442; --lab-sample: #4aa8e8; --lab-shape: #2ec4a0; --lab-time: #d9c45a;
+  --lab-lora: #ad8cf0; --lab-post: #ef6ea4; --lab-model: #9a9a9a;
+  --shadow-1: none;
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, .45);
+  --shadow-3: 0 6px 24px rgba(0, 0, 0, .55);
+}
+body { font: 400 14px/1.5 var(--sans); }
+h1, h2, h3, b, strong { font-weight: 600; }
+
+/* Controls: flat, quiet, 4px. */
+button { border-color: var(--hairline-2); background: var(--surface-2); box-shadow: none; font-weight: 600; font-size: 13px; }
+button:hover:not(:disabled) { background: var(--surface-3); border-color: var(--hairline-2); }
+button.ghost { background: transparent; border-color: transparent; color: var(--ink-2); }
+button.ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+button.accent { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+button.toggle[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-ink); }
+input[type=text], input[type=search], .select select {
+  background: var(--canvas); border-color: var(--hairline-2); box-shadow: none; font-size: 13px;
+}
+input:focus, .select select:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.segmented { background: var(--canvas); border-color: var(--hairline); }
+.segmented button[aria-pressed="true"] { background: var(--surface-3); box-shadow: none; }
+
+/* Frame: header and sidebar share the panel tone; the work area is darker. */
+#topbar { background: var(--surface); border-bottom-color: var(--hairline); }
+.mark { background: var(--accent); border-radius: 4px; width: 24px; height: 24px; }
+.wordmark-text { font-size: 14px; color: var(--ink-3); }
+.wordmark-text b { color: var(--ink); }
+.tab { font-weight: 600; color: var(--ink-3); border-radius: 0; padding: 0 12px; height: var(--topbar-h); min-height: 0; position: relative; }
+.tab:hover { background: transparent; color: var(--ink); }
+.tab[aria-selected="true"] { background: transparent; color: var(--ink); }
+.tab[aria-selected="true"]::after {
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 2px; background: var(--accent);
+}
+.tab-count { background: none; color: var(--accent-ink); font-family: var(--sans); padding: 0; margin-left: 5px; }
+#sidebar { background: var(--surface); }
+.filters { background: var(--surface); }
+#list { gap: 1px; padding: 6px; }
+
+/* Library rows: flat list items, selection shown like a timeline selection. */
+.card { border-radius: 4px; padding: 6px; border: 0; gap: 10px; }
+.card:hover { background: var(--surface-2); }
+.card.active { background: var(--accent-soft); border: 0; box-shadow: inset 2px 0 0 var(--accent); }
+.thumb { border-radius: 3px; }
+.thumb-dur { font-family: var(--sans); font-weight: 600; font-size: 11px; border-radius: 2px; background: rgba(0, 0, 0, .75); }
+.card-title { font-size: 13px; font-weight: 600; }
+.card-data { font-size: 12px; gap: 0 6px; }
+.card-data .sep { display: none; }
+.card-data > span { color: var(--cat, var(--ink-3)); font-weight: 600; }
+.card-foot { font-size: 11.5px; color: var(--ink-3); }
+.pick { border-radius: 3px; background: var(--surface-2); font-family: var(--sans); font-weight: 600; }
+.pick.on { background: var(--accent); }
+#tray { background: var(--surface-2); }
+
+.view { background: var(--canvas); padding: 16px 20px; }
+.player { border-radius: var(--r-md); }
+.transport.dock { border-radius: var(--r-md); box-shadow: var(--shadow-2); }
+
+/* Compare data line uses the same label colours. */
+.cmp-data > span { color: var(--cat, var(--ink-3)); font-weight: 600; }
+.cmp-data .sep { display: none; }
+.cmp-data { gap: 0 8px; display: flex; flex-wrap: wrap; }
+
+/* Theme toggle icon follows the dark default, not the OS setting. */
+:root:not([data-theme="light"]) .when-dark { display: block; }
+:root:not([data-theme="light"]) .when-light { display: none; }
+
+/* Settings: a small label-colour chip instead of tinting every label. */
+.kv dt { color: var(--ink-3); font-weight: 400; position: relative; padding-left: 12px; }
+.kv dt::before {
+  content: ""; position: absolute; left: 0; top: .5em; width: 6px; height: 6px; border-radius: 1px;
+  background: var(--cat, var(--lab-model));
+}
+/* Overlay transport keeps its own look; pressed state is a fill, not a box. */
+.transport.overlay button.toggle[aria-pressed="true"] { background: rgba(255, 255, 255, .2); border-color: transparent; color: #fff; }
