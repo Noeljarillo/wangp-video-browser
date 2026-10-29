@@ -1202,6 +1202,7 @@ function renderCompare() {
     extras.push(el("div", { className: "select compact", style: "flex:none;width:auto" }, [select, icon("down")]));
   }
   extras.push(iconButton("link", "Copy a link that reopens this comparison", { onclick: () => copy(compareLink()) }));
+  if (window.WVB_EXPORT_CMP) extras.push(WVB_EXPORT_CMP.button());
 
   cmpTransport = createTransport(players, {
     variant: "dock",

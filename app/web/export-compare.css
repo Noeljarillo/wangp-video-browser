@@ -1,0 +1,22 @@
+/* Export comparisons dialog (P6.1). Scrim/shadow shared with palette.css. */
+.ecx-scrim { align-items: center; padding: 16px; }
+.ecx {
+  width: min(480px, 100%);
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--hairline-2); border-radius: 4px;
+  box-shadow: var(--shadow-3);
+  padding: 0 16px 14px;
+}
+.ecx-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 0 8px; border-bottom: 1px solid var(--hairline); }
+.ecx-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.ecx-note { font-size: 13px; color: var(--ink-2); margin: 10px 0; }
+.ecx-row { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 8px 10px; align-items: center; }
+.ecx-row label { font-size: 12px; color: var(--ink-3); }
+.ecx-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.ecx-status { min-height: 20px; margin: 12px 0 0; font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
+.ecx-err { color: var(--del); }
+.ecx-dl { font-family: var(--mono); font-size: 12px; }
+@media (max-width: 767px) {
+  .ecx-row { grid-template-columns: auto 1fr; }
+  .ecx-actions button { flex: 1 1 auto; }
+}

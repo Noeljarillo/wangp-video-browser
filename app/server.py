@@ -28,6 +28,7 @@ from hashlib import sha1
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import export_compare
 import export_settings
 import inputs
 import library
@@ -465,7 +466,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _send_file(self, path, content_type=None, cache="no-store"):
+    def _send_file(self, path, content_type=None, cache="no-store", headers=None):
         path = Path(path)
         if not path.is_file():
             return self._send_json({"error": "not found"}, 404)
@@ -500,6 +501,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", cache)
         if status == 206:
             self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
         self.end_headers()
         try:
             with open(path, "rb") as handle:
@@ -584,6 +587,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_bytes(body, "application/json; charset=utf-8", cache="no-store",
                                     headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
+        if route.startswith("/api/compare/job/"):
+            job = export_compare.get_job(route[len("/api/compare/job/"):])
+            return self._send_json(job) if job else self._send_json({"error": "unknown job"}, 404)
+
+        if route.startswith("/exports/"):
+            target = export_compare.export_path(route[len("/exports/"):])
+            if not target:
+                return self._send_json({"error": "not found"}, 404)
+            return self._send_file(target, cache="private, max-age=3600",
+                                   headers={"Content-Disposition": f'attachment; filename="{target.name}"'})
+
         if route.startswith("/static/"):
             target = (WEB_DIR / route[len("/static/"):]).resolve()
             if WEB_DIR.resolve() in target.parents:
@@ -628,6 +642,17 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path.startswith("/api/library/"):
             return self._library_route(parsed.path, payload)
+
+        if parsed.path == "/api/compare/export":
+            ids = payload.get("ids") if isinstance(payload.get("ids"), list) else []
+            entries = [e for e in (find_video(str(i)) for i in ids) if e]
+            try:
+                job = export_compare.submit(FFMPEG, entries, kind=payload.get("kind") or "video",
+                                            mode=payload.get("mode") or "side", fmt=payload.get("format") or "mp4",
+                                            wipe=payload.get("wipe", 50))
+            except (export_compare.ExportError, TypeError, ValueError) as error:
+                return self._send_json({"error": str(error)}, 400)
+            return self._send_json(job)
 
         return self._send_json({"error": "not found"}, 404)
 
