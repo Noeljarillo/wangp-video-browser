@@ -1568,7 +1568,7 @@ function renderAll() {
   setView(state.view);
   // Emptying the views we're leaving detaches their <video> elements, which
   // both frees the decoders and lets their transport loops fall out of rAF.
-  for (const id of ["preview", "compare", "folders"]) {
+  for (const id of ["preview", "compare", "folders", "timeline"]) {
     if (id !== state.view) $(`#view-${id}`).replaceChildren();
   }
   if (state.view !== "compare") stopCompare();
@@ -1576,6 +1576,7 @@ function renderAll() {
   renderList();
   if (state.view === "preview") renderPreview();
   else if (state.view === "compare") renderCompare();
+  else if (state.view === "timeline") { if (window.WVBTimeline) WVBTimeline.render(); }
   else renderFolders();
 }
 

@@ -1,0 +1,40 @@
+/* Session timeline (P2.5) */
+.timeline { display: grid; gap: 18px; max-width: 1100px; }
+.tl-summary { font-size: 12.5px; color: var(--ink-3); }
+.tl-session {
+  display: grid; gap: 8px; padding: 12px; border: 1px solid var(--hairline); border-radius: 4px;
+  background: var(--surface); content-visibility: auto; contain-intrinsic-size: auto 420px;
+}
+.tl-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.tl-head h3 { margin: 0; font-size: 14px; color: var(--ink); }
+.tl-stats { font: 12px/1.4 var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.tl-track {
+  position: relative; height: 14px; border-radius: 3px; background: var(--well); overflow: hidden;
+}
+.tl-span {
+  position: absolute; top: 2px; bottom: 2px; min-width: 2px; padding: 0; border: 0; border-radius: 2px;
+  min-height: 0; background: var(--lab-time, var(--accent)); opacity: .75; cursor: pointer;
+  box-shadow: inset -1px 0 0 var(--well);
+}
+.tl-span:hover, .tl-span.active { opacity: 1; background: var(--accent); }
+.tl-rows { display: grid; gap: 1px; }
+.tl-clip {
+  display: grid; grid-template-columns: 52px minmax(0, 1fr) minmax(120px, 30%); align-items: center; gap: 10px;
+  width: 100%; padding: 5px 6px; min-height: 0; border: 0; border-radius: 3px; background: transparent;
+  box-shadow: none; text-align: left; color: var(--ink-2, var(--ink)); font-size: 12.5px; cursor: pointer;
+}
+.tl-clip:hover { background: var(--surface-2); }
+.tl-clip.active { background: var(--accent-soft); color: var(--ink); }
+.tl-clip:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tl-time { font: 12px var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.tl-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-gen { display: flex; align-items: center; gap: 8px; }
+.tl-gen b { font: 500 11.5px var(--mono); color: var(--ink-3); min-width: 56px; text-align: right; }
+.tl-bar-well { flex: 1; height: 6px; border-radius: 2px; background: var(--well); overflow: hidden; }
+.tl-bar { display: block; height: 100%; background: var(--lab-time, var(--accent)); }
+
+@media (max-width: 767px) {
+  .tl-session { padding: 10px; }
+  .tl-clip { grid-template-columns: 44px minmax(0, 1fr); min-height: 44px; }
+  .tl-gen { grid-column: 2; }
+}

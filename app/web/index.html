@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="/static/app.css">
 <link rel="stylesheet" href="/static/library.css">
 <link rel="stylesheet" href="/static/grid.css">
+<link rel="stylesheet" href="/static/timeline.css">
 </head>
 <body>
 
@@ -74,6 +75,7 @@
     <button class="tab" role="tab" id="tab-preview" aria-controls="view-preview" data-view="preview" aria-selected="true">Preview</button>
     <button class="tab" role="tab" id="tab-compare" aria-controls="view-compare" data-view="compare" aria-selected="false">Compare<span class="tab-count" id="cmpCount" hidden>0</span></button>
     <button class="tab" role="tab" id="tab-folders" aria-controls="view-folders" data-view="folders" aria-selected="false">Folders</button>
+    <button class="tab" role="tab" id="tab-timeline" aria-controls="view-timeline" data-view="timeline" aria-selected="false">Timeline</button>
   </nav>
 
   <div class="spacer"></div>
@@ -126,6 +128,7 @@
     <div class="view" id="view-preview" role="tabpanel" aria-labelledby="tab-preview" tabindex="0"></div>
     <div class="view" id="view-compare" role="tabpanel" aria-labelledby="tab-compare" tabindex="0"></div>
     <div class="view" id="view-folders" role="tabpanel" aria-labelledby="tab-folders" tabindex="0"></div>
+    <div class="view" id="view-timeline" role="tabpanel" aria-labelledby="tab-timeline" tabindex="0"></div>
   </section>
 </main>
 
@@ -139,6 +142,9 @@
   </button>
   <button class="tabbar-btn" role="tab" aria-controls="view-folders" data-view="folders" aria-selected="false">
     <svg viewBox="0 0 16 16" class="ic"><use href="#i-folder"/></svg><span>Folders</span>
+  </button>
+  <button class="tabbar-btn" role="tab" aria-controls="view-timeline" data-view="timeline" aria-selected="false">
+    <svg viewBox="0 0 16 16" class="ic"><use href="#i-loop"/></svg><span>Timeline</span>
   </button>
 </nav>
 
@@ -154,5 +160,6 @@
 <script src="/static/app.js"></script>
 <script src="/static/takes.js"></script>
 <script src="/static/library.js"></script>
+<script src="/static/timeline.js"></script>
 </body>
 </html>
