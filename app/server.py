@@ -28,6 +28,8 @@ from hashlib import sha1
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import export_settings
+import inputs
 import library
 import metadata as meta_reader
 
@@ -453,6 +455,16 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_bytes(self, body, content_type, cache="private, max-age=3600", headers=None):
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", cache)
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
+        self.end_headers()
+        self.wfile.write(body)
+
     def _send_file(self, path, content_type=None, cache="no-store"):
         path = Path(path)
         if not path.is_file():
@@ -543,6 +555,34 @@ class Handler(BaseHTTPRequestHandler):
             if not thumb:
                 return self._send_json({"error": "no thumbnail"}, 404)
             return self._send_file(thumb, "image/jpeg", cache="private, max-age=86400")
+
+        if route.startswith("/api/inputs/"):
+            entry = find_video(route[len("/api/inputs/"):])
+            if not entry:
+                return self._send_json({"error": "unknown video"}, 404)
+            return self._send_json({"id": entry["id"], "inputs": inputs.public(inputs.collect(entry))})
+
+        if route.startswith("/input/"):
+            # Allow-list only: /input/<id>/<n>, where n indexes this clip's own refs.
+            vid, _, n_text = route[len("/input/"):].partition("/")
+            ref = inputs.lookup(find_video(vid), n_text)
+            if not ref:
+                return self._send_json({"error": "not found"}, 404)
+            if ref["source"] == "embedded":
+                return self._send_bytes(inputs.read_embedded(ref), ref["_mime"])
+            return self._send_file(ref["_path"], cache="private, max-age=3600")
+
+        if route.startswith("/api/export/"):
+            entry = find_video(route[len("/api/export/"):])
+            if not entry:
+                return self._send_json({"error": "unknown video"}, 404)
+            new_seed = urllib.parse.parse_qs(parsed.query).get("new_seed", ["0"])[0] in ("1", "true")
+            try:
+                body, name = export_settings.export(entry, new_seed=new_seed)
+            except export_settings.NotExportable as error:
+                return self._send_json({"error": str(error)}, 400)
+            return self._send_bytes(body, "application/json; charset=utf-8", cache="no-store",
+                                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
         if route.startswith("/static/"):
             target = (WEB_DIR / route[len("/static/"):]).resolve()

@@ -38,6 +38,8 @@ This app reads it back and builds a proper video library on top of it.
 | **Generation recipe** | Seed, steps, guidance, flow shift, solver, resolution, frames, LoRAs with weights and render time, colour-coded and copied with one click. |
 | **Readable prompts** | Structured WanGP prompts split into summary, description and subject sections, with placeholders like *Subject 1* and *Shot 2* highlighted. |
 | **A/B comparison** | Up to four clips on one synced transport: play, scrub and frame-step them together, solo any clip's audio. |
+| **Input references** | The start/end frames, reference images and guide media a clip was made from, in a strip under the player and under each clip in Compare. Click to enlarge; missing files show "not found" with the recorded path. WanGP only keeps them when *Config > Outputs > Embed Source Images* is on. |
+| **Re-run in WanGP** | Export any clip's settings as the JSON WanGP loads, optionally with a new seed. |
 | **Settings diff** | Only the settings that differ between runs, with a word-by-word prompt diff. |
 | **Wipe & blink** | Overlay two takes in the same screen position and drag a divider, or flicker between them so motion differences jump out. |
 | **Mobile** | A real phone layout with bottom navigation, sheet previews and full-screen wipe. Open it over your LAN through Pinokio. |
@@ -131,6 +133,21 @@ focusable and driven with the arrow keys.
 **Comparing something from outside your outputs folder?** Drag any video onto the window. Its
 embedded WanGP metadata gets parsed in the browser and it joins the compare tray like any other.
 
+### Re-run a clip in WanGP
+
+1. Open the clip in **Preview** and click **Export settings** (or **New seed** for the same
+   settings with a fresh random seed). A `<model>_<date>_seed<N>.json` file downloads.
+2. In WanGP, drop the file on **Load Settings From Media File / Json / Zip** (next to
+   **Export Settings to File**). Any model can be selected first.
+3. WanGP switches to the clip's model and fills in prompt, seed, steps, guidance, resolution,
+   frames and LoRAs. Click **Generate**.
+
+The file is the same JSON WanGP writes with **Export Settings to File**: the settings blob WanGP
+embedded in the video, without the browser's own fields and the per-render bookkeeping
+(`generation_time`, `creation_date`, `output_filename`, ...). WanGP merges it over the model's
+defaults. Input images are not part of a settings JSON - re-add the start frame / reference
+images in WanGP before generating (they are shown under the player when the clip recorded them).
+
 ---
 
 ## Requirements
@@ -189,6 +206,9 @@ taken it moves to the next free port and prints the address in the Terminal tab.
 | `GET` | `/api/rescan` | Re-scan all folders and return the refreshed index |
 | `GET` | `/media/<id>` | Stream the video file (supports HTTP `Range`) |
 | `GET` | `/thumb/<id>` | JPEG thumbnail (404 if ffmpeg is unavailable) |
+| `GET` | `/api/inputs/<id>` | Input references the clip's metadata records: `[{n, key, label, recorded, kind, exists, source}]` |
+| `GET` | `/input/<id>/<n>` | The n-th input reference — only files that clip's own metadata names, and only if they exist (404 otherwise) |
+| `GET` | `/api/export/<id>` | WanGP-loadable settings JSON for the clip (`?new_seed=1` for a fresh seed); 400 for non-WanGP clips |
 | `POST` | `/api/roots/add` | Body `{"path": "..."}` — index an extra folder, remembered across restarts |
 | `POST` | `/api/roots/remove` | Body `{"path": "..."}` — stop indexing a folder |
 
