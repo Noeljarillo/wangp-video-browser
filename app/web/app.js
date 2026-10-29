@@ -972,7 +972,7 @@ function renderPreview() {
 
   view.replaceChildren(el("div", { className: "preview" }, [
     head,
-    el("div", { className: "preview-main" }, [player, ...prompts]),
+    el("div", { className: "preview-main" }, [player, window.WVB_INPUTS ? WVB_INPUTS.strip(video) : null, ...prompts].filter(Boolean)),
     el("aside", { className: "preview-side" }, [recipe, noMeta, hasMeta ? settings : null, file].filter(Boolean)),
   ]));
 }
@@ -1059,6 +1059,7 @@ function buildSideBySide(videos, players, stamps) {
       ]),
       el("div", { className: "cmp-media" }, [media, stamp]),
       el("div", { className: "cmp-data" }, clipData(video)),
+      window.WVB_INPUTS ? WVB_INPUTS.strip(video, { compact: true }) : null,
     ]);
   });
   return el("div", { className: `cmp-grid n${videos.length}` }, cells);

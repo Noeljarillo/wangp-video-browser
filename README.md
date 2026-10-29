@@ -38,6 +38,7 @@ This app reads it back and builds a proper video library on top of it.
 | **Generation recipe** | Seed, steps, guidance, flow shift, solver, resolution, frames, LoRAs with weights and render time, colour-coded and copied with one click. |
 | **Readable prompts** | Structured WanGP prompts split into summary, description and subject sections, with placeholders like *Subject 1* and *Shot 2* highlighted. |
 | **A/B comparison** | Up to four clips on one synced transport: play, scrub and frame-step them together, solo any clip's audio. |
+| **Input references** | The start/end frames, reference images and guide media a clip was made from, in a strip under the player and under each clip in Compare. Click to enlarge; missing files show "not found" with the recorded path. WanGP only keeps them when *Config > Outputs > Embed Source Images* is on. |
 | **Settings diff** | Only the settings that differ between runs, with a word-by-word prompt diff. |
 | **Wipe & blink** | Overlay two takes in the same screen position and drag a divider, or flicker between them so motion differences jump out. |
 | **Mobile** | A real phone layout with bottom navigation, sheet previews and full-screen wipe. Open it over your LAN through Pinokio. |
@@ -189,6 +190,8 @@ taken it moves to the next free port and prints the address in the Terminal tab.
 | `GET` | `/api/rescan` | Re-scan all folders and return the refreshed index |
 | `GET` | `/media/<id>` | Stream the video file (supports HTTP `Range`) |
 | `GET` | `/thumb/<id>` | JPEG thumbnail (404 if ffmpeg is unavailable) |
+| `GET` | `/api/inputs/<id>` | Input references the clip's metadata records: `[{n, key, label, recorded, kind, exists, source}]` |
+| `GET` | `/input/<id>/<n>` | The n-th input reference — only files that clip's own metadata names, and only if they exist (404 otherwise) |
 | `POST` | `/api/roots/add` | Body `{"path": "..."}` — index an extra folder, remembered across restarts |
 | `POST` | `/api/roots/remove` | Body `{"path": "..."}` — stop indexing a folder |
 
