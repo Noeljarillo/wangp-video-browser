@@ -340,6 +340,7 @@ async function load(url = "/api/videos", options) {
 }
 
 function applyIndex(data) {
+  if (window.WVBGrid) data = WVBGrid.mockIndex(data);   // ?mock=N dev flag
   state.videos = data.videos || [];
   state.roots = data.roots || [];
   state.ffmpeg = !!data.ffmpeg;
@@ -442,6 +443,7 @@ function renderList() {
   endScrub();
   const videos = visibleVideos();
   if (!videos.length) {
+    if (window.WVBGrid) WVBGrid.clear();
     list.replaceChildren(el("div", { className: "empty", style: "grid-column:1/-1" }, [
       icon("film"),
       el("h3", {}, state.videos.length ? "Nothing matches" : "No clips indexed"),
@@ -453,7 +455,8 @@ function renderList() {
     ]));
     return;
   }
-  list.replaceChildren(...videos.map(buildCard));
+  if (window.WVBGrid) WVBGrid.render(videos.map((v) => ({ key: v.id, ids: [v.id], build: () => buildCard(v) })));
+  else list.replaceChildren(...videos.map(buildCard));
 }
 
 function buildCard(video) {
@@ -551,10 +554,14 @@ function beginScrub(thumb, video) {
   node.src = mediaUrl(video);
   thumb.append(node);
   thumb.classList.add("scrubbing");
+  // Grid tiles hover-play (muted, looping) instead of scrubbing.
+  node.loop = hoverPlays();
+  if (node.loop) node.play().catch(() => {});
 }
+const hoverPlays = () => document.documentElement.dataset.layout === "grid";
 
 function moveScrub(event) {
-  if (!scrubOwner) return;
+  if (!scrubOwner || hoverPlays()) return;
   const rect = scrubOwner.getBoundingClientRect();
   scrubRatio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
   if (scrubRaf) return;

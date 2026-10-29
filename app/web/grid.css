@@ -1,0 +1,44 @@
+/* Grid view and list virtualisation (P2.1) */
+#list.vlist { display: block; }
+.vspace { pointer-events: none; }
+.vrow {
+  display: grid; grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+  gap: 6px; padding-bottom: 6px; align-items: start;
+}
+.vrow-span { grid-template-columns: minmax(0, 1fr); }
+
+.layout-tools { display: flex; align-items: center; gap: 8px; flex: none; }
+.cols-slider { width: 76px; accent-color: var(--accent); }
+.cols-slider[hidden] { display: none; }
+
+/* Grid tiles: the card collapses to poster + title (+ triage line). */
+:root[data-layout="grid"] .card { grid-template-columns: minmax(0, 1fr); gap: 5px; padding: 4px; }
+:root[data-layout="grid"] .card-body { gap: 2px; padding: 0 2px; }
+:root[data-layout="grid"] .card-title { -webkit-line-clamp: 1; font-size: 12px; padding-right: 0; }
+:root[data-layout="grid"] .card-model,
+:root[data-layout="grid"] .card-data,
+:root[data-layout="grid"] .card-loras,
+:root[data-layout="grid"] .card-foot { display: none; }
+:root[data-layout="grid"] .card.picked::before { display: none; }
+:root[data-layout="grid"] .card.picked .thumb { outline: 2px solid var(--accent); outline-offset: 1px; }
+:root[data-layout="grid"] .take-group.open {
+  grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); gap: 6px;
+}
+:root[data-layout="grid"] .take-group.open .take-head { grid-column: 1 / -1; }
+:root[data-layout="grid"] .take-group.open .card-slot:not(.take-cover) { margin-left: 0; }
+:root[data-layout="grid"] .take-head { flex-wrap: wrap; }
+
+@media (min-width: 768px) {
+  /* The grid wants room: widen the library panel while it is shown. */
+  :root[data-layout="grid"] #sidebar { width: max(var(--sidebar-w), 52vw); }
+}
+@media (max-width: 767px) {
+  .vrow { gap: 10px; padding-bottom: 10px; }
+  .layout-tools button { min-height: 40px; }
+}
+
+.perf-result {
+  position: fixed; right: 12px; bottom: 12px; z-index: 100; margin: 0; padding: 10px 12px;
+  font: 12px/1.4 var(--mono); background: var(--surface-2); color: var(--ink);
+  border: 1px solid var(--hairline); border-radius: 4px; box-shadow: var(--shadow-1);
+}
