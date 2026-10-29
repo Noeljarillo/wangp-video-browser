@@ -15,10 +15,11 @@ already understands (WanGP's own keys):
 
 import json
 import os
+import re
 import subprocess
 
 # Bump whenever normalisation changes so cached index entries are rebuilt.
-META_VERSION = 1
+META_VERSION = 2
 
 RESERVED_METADATA_KEY = "_wangp_metadata_reserved"
 
@@ -516,6 +517,122 @@ def _looks_wangp(meta):
         "settings_version" in meta or "base_model_type" in meta or "model_type" in meta
 
 
+# ---------------------------------------------------------------------------
+# A1111 / Forge `parameters` text, LTX-Video / HunyuanVideo argument JSON
+# ---------------------------------------------------------------------------
+
+A1111_PARAM_RE = re.compile(r'\s*([\w ./+-]+):\s*("(?:\\.|[^\\"])+"|[^,]*)(?:,|$)')
+A1111_LORA_RE = re.compile(r"<lora:([^:>]+)(?::([-\d.]+))?[^>]*>")
+A1111_KEYS = {
+    "steps": "num_inference_steps", "sampler": "sample_solver", "schedule type": "scheduler",
+    "cfg scale": "guidance_scale", "distilled cfg scale": "embedded_guidance_scale", "seed": "seed",
+    "size": "resolution", "model": "model_type", "model hash": "model_hash",
+    "denoising strength": "denoise", "shift": "flow_shift", "version": "version",
+    "frames": "video_length", "fps": "fps",
+}
+
+
+def _scalar(text):
+    text = str(text).strip()
+    if text.startswith('"') and text.endswith('"') and len(text) >= 2:
+        try:
+            return json.loads(text)
+        except ValueError:
+            return text[1:-1]
+    if re.fullmatch(r"-?\d+", text):
+        return int(text)
+    if re.fullmatch(r"-?\d*\.\d+(?:e-?\d+)?", text):
+        return _num(float(text))
+    return text
+
+
+def parse_a1111(text):
+    """`parameters` text as written by A1111 / Forge / SD.Next. None if it is not one."""
+    lines = str(text or "").strip().replace("\r\n", "\n").split("\n")
+    index = next((i for i in range(len(lines) - 1, -1, -1) if re.match(r"\s*Steps:\s*\d", lines[i])), None)
+    if index is None:
+        return None
+    body, negative, in_negative = [], [], False
+    for line in lines[:index]:
+        if line.startswith("Negative prompt:"):
+            in_negative, line = True, line[len("Negative prompt:"):].lstrip()
+        (negative if in_negative else body).append(line)
+    meta = {"prompt": "\n".join(body).strip(), "negative_prompt": "\n".join(negative).strip()}
+    for key, value in A1111_PARAM_RE.findall(" ".join(lines[index:])):
+        key = key.strip()
+        target = A1111_KEYS.get(key.lower()) or re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
+        if target:
+            meta[target] = _scalar(value)
+    if isinstance(meta.get("resolution"), str):
+        meta["resolution"] = meta["resolution"].replace(" ", "")
+    loras = A1111_LORA_RE.findall(meta["prompt"])
+    meta["activated_loras"] = [name for name, _ in loras]
+    meta["loras_multipliers"] = " ".join(weight or "1" for _, weight in loras)
+    version = str(meta.get("version", ""))
+    meta["_source"] = "forge" if re.match(r"f\d", version) else \
+        "sdnext" if "sd.next" in str(meta.get("app", "")).lower() else "a1111"
+    return {k: v for k, v in meta.items() if v not in (None, "")} | {"_source": meta["_source"]}
+
+
+GENERIC_ALIASES = {
+    "prompt": ("prompt", "positive_prompt"),
+    "negative_prompt": ("negative_prompt", "neg_prompt", "negative"),
+    "seed": ("seed", "seeds"),
+    "num_inference_steps": ("num_inference_steps", "infer_steps", "steps"),
+    "guidance_scale": ("guidance_scale", "cfg_scale", "cfg"),
+    "flow_shift": ("flow_shift", "shift"),
+    "sample_solver": ("sample_solver", "sampler", "flow_solver", "scheduler"),
+    "video_length": ("video_length", "num_frames", "frames"),
+    "model_type": ("model_type", "model", "dit_weight", "ckpt_path", "model_path", "pipeline_config"),
+}
+LTX_HINTS = {"stg_scale", "stg_mode", "stg_skip_layers", "pipeline_config", "conditioning_media_paths",
+             "conditioning_start_frames", "image_cond_noise_scale"}
+HUNYUAN_HINTS = {"infer_steps", "embedded_guidance_scale", "video_size", "dit_weight", "flow_reverse",
+                 "neg_prompt", "i2v_mode", "use_cpu_offload"}
+
+
+def _generator_of(meta):
+    keys = set(meta)
+    blob = " ".join(str(meta.get(k, "")) for k in ("model", "model_type", "dit_weight", "ckpt_path",
+                                                    "model_path", "pipeline_config", "generator", "type")).lower()
+    if keys & LTX_HINTS or "ltx" in blob:
+        return "ltx-video"
+    if keys & HUNYUAN_HINTS or "hunyuan" in blob:
+        return "hunyuan"
+    return None
+
+
+def normalise_generic(parsed, source):
+    meta = dict(parsed)
+    for target, aliases in GENERIC_ALIASES.items():
+        for alias in aliases:
+            if alias in meta and not isinstance(meta[alias], (dict,)):
+                value = meta.pop(alias)
+                if target not in meta:
+                    meta[target] = value
+                break
+    seed = meta.get("seed")
+    if isinstance(seed, list):
+        meta["seed"] = seed[0] if seed else None
+    if isinstance(meta.get("model_type"), str):
+        meta["model_type"] = _strip_ext(meta["model_type"])
+    if "resolution" not in meta:
+        size = meta.pop("video_size", None)
+        width, height = meta.get("width"), meta.get("height")
+        if isinstance(size, (list, tuple)) and len(size) == 2:  # Hunyuan: [height, width]
+            height, width = size
+        if width and height:
+            meta["resolution"] = f"{int(width)}x{int(height)}"
+            meta.pop("width", None)
+            meta.pop("height", None)
+    for key in ("guidance_scale", "flow_shift", "num_inference_steps", "seed"):
+        if isinstance(meta.get(key), float):
+            meta[key] = _num(meta[key])
+    meta = {k: v for k, v in meta.items() if v is not None}
+    meta["_source"] = source
+    return meta
+
+
 def normalise_tags(tags):
     """Turn raw container tags into the UI's settings dict ({} when nothing usable)."""
     ordered = [k for k in PRIORITY_TAGS if k in tags] + [k for k in tags if k not in PRIORITY_TAGS]
@@ -538,9 +655,16 @@ def normalise_tags(tags):
             return comfy_meta(parsed, None)
         if _is_ui_workflow(parsed):
             return comfy_meta(None, parsed)
-        meta = dict(parsed)
-        meta["_source"] = "wangp" if _looks_wangp(parsed) else "unknown"
-        return meta
+        if _looks_wangp(parsed):
+            return dict(parsed, _source="wangp")
+        generator = _generator_of(parsed)
+        if generator:
+            return normalise_generic(parsed, generator)
+        return dict(parsed, _source="unknown")
+    for key in ordered:
+        meta = parse_a1111(tags[key])
+        if meta:
+            return meta
     return {}
 
 

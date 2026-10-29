@@ -9,6 +9,11 @@
 const META_SOURCES = {
   wangp: "WanGP",
   comfyui: "ComfyUI",
+  a1111: "A1111",
+  forge: "Forge",
+  sdnext: "SD.Next",
+  "ltx-video": "LTX-Video",
+  hunyuan: "HunyuanVideo",
 };
 
 /* Internal keys never shown as settings rows or diffed. */

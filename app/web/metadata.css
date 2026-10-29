@@ -5,3 +5,5 @@
 }
 .meta-source.src-comfyui { color: var(--lab-sample); }
 .meta-source.src-wangp { color: var(--lab-shape); }
+.meta-source.src-a1111, .meta-source.src-forge, .meta-source.src-sdnext { color: var(--lab-lora); }
+.meta-source.src-ltx-video, .meta-source.src-hunyuan { color: var(--lab-post); }

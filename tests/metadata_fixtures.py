@@ -103,6 +103,32 @@ def comfy_vhs_comment(prompt, workflow=None):
     return json.dumps(payload)
 
 
+A1111_PARAMETERS = (
+    "masterpiece, a castle on a hill <lora:detail_tweaker:0.6> <lora:film_grain>\n"
+    "Negative prompt: lowres, bad anatomy\n"
+    "Steps: 28, Sampler: DPM++ 2M, Schedule type: Karras, CFG scale: 7, Seed: 1234567, Size: 768x512, "
+    "Model hash: 6ce0161689, Model: dreamshaper_8, Lora hashes: \"detail_tweaker: 1a2b3c, film_grain: 4d5e6f\", "
+    "Version: v1.10.1"
+)
+FORGE_PARAMETERS = (
+    "a neon city street at night, rain\n"
+    "Steps: 20, Sampler: Euler, Schedule type: Simple, CFG scale: 1, Distilled CFG Scale: 3.5, Seed: 99, "
+    "Size: 1024x1024, Model hash: a1b2c3, Model: flux1-dev-bnb-nf4-v2, Version: f2.0.1v1.10.1-previous-313"
+)
+LTX_ARGS = {
+    "prompt": "a drone shot over a misty forest", "negative_prompt": "worst quality, blurry",
+    "seed": 171198, "num_inference_steps": 40, "guidance_scale": 3.0, "stg_scale": 1.0,
+    "height": 480, "width": 704, "num_frames": 121, "frame_rate": 25,
+    "pipeline_config": "configs/ltxv-13b-0.9.7-dev.yaml",
+}
+HUNYUAN_ARGS = {
+    "prompt": "a cat walks on the grass, realistic style", "neg_prompt": "", "seeds": [42],
+    "infer_steps": 50, "cfg_scale": 1.0, "embedded_guidance_scale": 6.0, "flow_shift": 7.0,
+    "video_size": [720, 1280], "video_length": 129, "flow_reverse": True,
+    "dit_weight": "ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt",
+}
+
+
 def build_all(folder):
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
@@ -117,6 +143,11 @@ def build_all(folder):
         "comfy_separate_tags.mp4": mp4_bytes({"prompt": json.dumps(load("comfy_ksampler_prompt.json"))}),
         "reserved.mp4": mp4_bytes({b"\xa9cmt": json.dumps({"_wangp_metadata_reserved": True, "pad": " " * 64})}),
         "plain_comment.mp4": mp4_bytes({b"\xa9cmt": "just a note, not settings"}),
+        "a1111.mp4": mp4_bytes({"parameters": A1111_PARAMETERS}),
+        "forge.mkv": mkv_bytes({"COMMENT": FORGE_PARAMETERS}),
+        "ltx.mp4": mp4_bytes({b"\xa9cmt": json.dumps(LTX_ARGS)}),
+        "hunyuan.mkv": mkv_bytes({"DESCRIPTION": json.dumps(HUNYUAN_ARGS)}),
+        "other_json.mp4": mp4_bytes({b"\xa9cmt": json.dumps({"foo": 1, "bar": "baz"})}),
         "no_metadata.mp4": box(b"ftyp", b"isom\0\0\x02\0isom") + box(b"mdat", b"\0" * 16),
     }
     for name, data in files.items():

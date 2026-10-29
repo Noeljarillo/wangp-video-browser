@@ -6,6 +6,8 @@ const { metaSourceLabel, metaRawWorkflow } = require("../app/web/metadata.js");
 test("source label", () => {
   assert.strictEqual(metaSourceLabel({ _source: "comfyui" }), "ComfyUI");
   assert.strictEqual(metaSourceLabel({ _source: "wangp" }), "WanGP");
+  assert.strictEqual(metaSourceLabel({ _source: "forge" }), "Forge");
+  assert.strictEqual(metaSourceLabel({ _source: "ltx-video" }), "LTX-Video");
   assert.strictEqual(metaSourceLabel({ _source: "unknown" }), null);
   assert.strictEqual(metaSourceLabel({}), null);
 });

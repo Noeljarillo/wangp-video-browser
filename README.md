@@ -147,12 +147,27 @@ empty settings.
 
 ### FAQ
 
-**Does it work with ComfyUI?** You can add a ComfyUI `output` folder from the **Folders** tab and
-browse, play, scrub and wipe/blink-compare those clips. The recipe and settings diff currently read
-WanGP's embedded metadata only, so ComfyUI clips show without settings.
+**Does it work with ComfyUI?** Yes. Add a ComfyUI `output` folder from the **Folders** tab. Clips
+saved by VideoHelperSuite (Video Combine) carry the workflow, and the browser turns it into the same
+recipe, filters and settings diff as a WanGP clip (seed, steps, CFG, sampler, resolution, prompts,
+LoRAs, model). **Workflow** in the preview header copies the embedded workflow JSON.
 
-**Which formats?** MP4, MOV, M4V, MKV, WebM and AVI are indexed. Generation settings are read from
-MP4/MOV/M4V.
+**Which formats?** MP4, MOV, M4V, MKV, WebM and AVI are indexed. Generation settings are read
+without ffmpeg from MP4/MOV/M4V and MKV/WebM tags (ffprobe is used as a fallback for anything else).
+See *Formats* below.
+
+#### Formats
+
+| Generator | Where the settings are | Read |
+| --- | --- | --- |
+| WanGP / Wan2GP | JSON in the `comment` tag | Every setting, unchanged |
+| ComfyUI (VideoHelperSuite) | `prompt` + `workflow` JSON in `comment` (or separate tags) | KSampler, KSamplerAdvanced, SamplerCustom(Advanced), WanVideo wrapper; LoRA, UNet and checkpoint loaders. Raw graph kept |
+| A1111 / Forge / SD.Next | `parameters` text block (`Steps: 20, Sampler: ...`) in `parameters`, `comment` or `description` | Prompt, negative, every `Key: value` pair, `<lora:name:weight>` |
+| LTX-Video | Argument JSON in `comment` / `description`, when a script embeds it | Prompt, seed, steps, guidance, size, frames, STG and other args |
+| HunyuanVideo | Argument JSON in `comment` / `description`, when a script embeds it | Prompt, seed, steps, guidance, `video_size`, frames, model |
+
+LTX-Video's and HunyuanVideo's own scripts do not embed settings by default; files without metadata
+are simply listed without a recipe. Anything else stays exactly as written in the file.
 
 **Does it change my files?** No. The server only reads them.
 
