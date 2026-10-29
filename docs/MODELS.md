@@ -23,3 +23,21 @@ trade for a permissive licence; DINOv2 crops cover faces SFace can't embed (styl
 | SigLIP base `google/siglip-base-patch16-224` | 768-d image embedding per sampled frame (CUDA fp16, CPU fp32 fallback) and text-query embedding; zero-shot tags | Apache-2.0 | huggingface.co/google/siglip-base-patch16-224 |
 
 Fetched once into `app/.cache/models/` on the first `semantic` job (`huggingface_hub.snapshot_download`, weights + `tokenizer.json`; the text side uses the `tokenizers` fast tokenizer, so `sentencepiece` is not needed). Camera motion (P4.2) uses OpenCV Farneback optical flow - no weights.
+
+## P5.1 Aesthetic score (`app/analysis/defects.py`)
+
+| Model | Use | Licence | Source |
+| --- | --- | --- | --- |
+| `sac+logos+ava1-l14-linearMSE.pth` (LAION improved-aesthetic-predictor MLP) | 1-10 aesthetic score of a clip's sharpest frame | MIT | github.com/christophschuhmann/improved-aesthetic-predictor |
+| CLIP ViT-L/14 `openai/clip-vit-large-patch14` | image embedding the MLP head scores (vision tower + visual projection, L2-normalised) | MIT | huggingface.co/openai/clip-vit-large-patch14 |
+
+Both are fetched once into `app/.cache/models/`. Without them the flag is simply absent; nothing
+else in P5.1 depends on a model (flicker, frozen, black, blown, jitter and sharpness are ffmpeg /
+OpenCV measurements).
+
+## P4.3 Captions (opt-in, off by default)
+
+Uses whatever OpenAI-compatible vision model the user already runs on loopback
+(`app/.data/captions.json` -> `{"endpoint": "http://127.0.0.1:1234/v1", "model": "<id from lms ps>"}`).
+The add-on refuses any non-loopback endpoint, so clip frames never leave the machine (C3). Prompt
+adherence reuses the SigLIP text tower from P4.1, so no extra weights are needed.

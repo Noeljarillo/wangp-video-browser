@@ -150,6 +150,29 @@ images in WanGP before generating (they are shown under the player when the clip
 
 ---
 
+## Analysis add-on (optional)
+
+The browser is dependency-free: without the add-on it indexes, plays, compares and triages
+clips, and every AI view shows a calm "Install analysis" state. Install it from the Pinokio
+menu (**Install analysis**) and it gets its own venv in `app/analysis/env`, model weights in
+`app/.cache/models/`, and a worker process that pauses whenever WanGP is generating (C5).
+
+What it adds, all cached per file and re-run only when a file changes:
+
+| Feature | What you get |
+| --- | --- |
+| Faces and people | detections overlay on the player, character clusters that you name/merge/split |
+| Content search | type "close-up", "night", "running" and clips come back at the matching frame |
+| Auto-tags | shot type, location, time of day, style, camera motion as filters |
+| Reference match | 0-100 per clip and per frame against the images the clip was generated from |
+| Identity drift | flags clips where the character stops being the same person mid-clip |
+| Defect flags | flicker, frozen, black, blown, jitter, soft, plus a 1-10 aesthetic score |
+| Captions | opt-in only, with a vision model you already run on loopback (off by default) |
+
+Insights (the **Insights** tab) charts what your ratings say about steps, guidance, shift, LoRA
+weight, model, resolution, aesthetic score and reference match, with one plain-language
+takeaway per chart. Weights and licences: `docs/MODELS.md`.
+
 ## Requirements
 
 - **Pinokio** (or any Python 3.8+).
