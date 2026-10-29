@@ -28,6 +28,8 @@ from hashlib import sha1
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import metadata as meta_reader
+
 APP_DIR = Path(__file__).resolve().parent
 WEB_DIR = APP_DIR / "web"
 CACHE_DIR = APP_DIR / ".cache"
@@ -173,10 +175,8 @@ def read_container_metadata(path):
 
 
 def read_video_metadata(path):
-    metadata = None
-    if str(path).lower().endswith((".mp4", ".mov", ".m4v")):
-        metadata = read_mp4_metadata(path)
-    return metadata or read_container_metadata(path) or {}
+    # Format detection + normalisation (WanGP, ComfyUI, ...) lives in metadata.py.
+    return meta_reader.read_video_metadata(path, FFPROBE)
 
 
 # ---------------------------------------------------------------------------
@@ -333,7 +333,7 @@ def parse_filename(name):
 
 def build_entry(path, root, cache):
     stat = path.stat()
-    cache_key = f"{path}|{stat.st_size}|{int(stat.st_mtime_ns)}"
+    cache_key = f"{path}|{stat.st_size}|{int(stat.st_mtime_ns)}|m{meta_reader.META_VERSION}"
     cached = cache.get(cache_key)
     if cached:
         entry = dict(cached)

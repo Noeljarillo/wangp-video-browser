@@ -843,6 +843,8 @@ function renderPreview() {
     ]),
   ]);
 
+  if (typeof decoratePreviewHead === "function") decoratePreviewHead(head, video);
+
   const { player } = buildPlayer(video);
   const hasMeta = Object.keys(meta).length > 0;
 
