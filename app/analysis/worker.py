@@ -13,15 +13,24 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from analysis import faces, frames, gpu, jobqueue  # noqa: E402
+from analysis import characters, faces, frames, gpu, jobqueue  # noqa: E402
+
+try:  # needs numpy / torch from the add-on venv
+    from analysis import semantic
+except ImportError:  # dev mode on the core interpreter
+    semantic = None
 
 
 def run_noop(job, ctx):
     return {"ok": True}
 
 
-HANDLERS = {"noop": run_noop, "frames": frames.run_job, "faces": faces.run_job}
+HANDLERS = {"noop": run_noop, "frames": frames.run_job, "faces": faces.run_job,
+            "characters": characters.run_job}
 NEEDS_GPU = {"faces"}
+if semantic:
+    HANDLERS["semantic"] = semantic.run_job
+    NEEDS_GPU.add("semantic")
 
 
 def _parent_alive(pid):
@@ -46,6 +55,7 @@ class Worker:
         self.handlers = handlers or HANDLERS
         self.stopped = False
         self.processed = 0
+        self.recluster_due = False
         self.gate_interval = min(2.0, poll * 2)
         self._gate_cache, self._gate_at = None, 0.0
 
@@ -62,6 +72,10 @@ class Worker:
             return "paused"
         job = jobqueue.claim(self.conn, kinds=list(self.handlers))
         if not job:
+            if self.recluster_due:  # P3.3: re-cluster once the queue drains after new detections
+                self.recluster_due = False
+                jobqueue.enqueue(self.conn, "characters", [{"path": "library", "size": 0, "mtime_ns": time.time_ns()}])
+                return "worked"
             jobqueue.set_worker(self.conn, pid=os.getpid(), state="idle", reason=None, job=None, gpu=snap)
             return "idle"
         if job["kind"] in NEEDS_GPU:
@@ -75,6 +89,8 @@ class Worker:
         try:
             result = self.handlers[job["kind"]](job, self.ctx)
             jobqueue.finish(self.conn, job["id"], result=result)
+            if job["kind"] == "faces" and not (result or {}).get("cached") and "characters" in self.handlers:
+                self.recluster_due = True
         except Exception as error:  # a bad file must not stop the queue
             jobqueue.finish(self.conn, job["id"], error=f"{type(error).__name__}: {error}")
             traceback.print_exc(file=sys.stderr)
@@ -85,6 +101,8 @@ class Worker:
         jobqueue.requeue_running(self.conn)
         while not self.stopped and _parent_alive(self.parent):
             if self.step() != "worked":
+                if semantic and self.ctx.get("cache"):
+                    semantic.get_model(self.ctx["cache"]).idle()  # free VRAM when the queue is quiet
                 time.sleep(self.poll)
         jobqueue.set_worker(self.conn, pid=None, state="stopped", reason=None, job=None)
 
@@ -100,6 +118,8 @@ def main():
     args = parser.parse_args()
     ctx = {"cache": Path(args.cache), "ffmpeg": args.ffmpeg or None, "db": args.db, "vram_mb": args.vram_mb}
     print(f"[analysis] worker {os.getpid()} on {args.db}", flush=True)
+    if semantic:
+        semantic.serve(ctx)  # loopback query socket for the core (127.0.0.1 only)
     Worker(args.db, ctx=ctx, gate=gpu.Gate(vram_cap_mb=args.vram_mb), poll=args.poll,
            parent=args.parent or None).run()
 

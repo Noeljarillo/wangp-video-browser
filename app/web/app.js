@@ -420,13 +420,14 @@ const renderModelFilter = renderFacets;
 
 function visibleVideos() {
   const query = $("#search").value.trim().toLowerCase();
-  const list = state.videos.filter((video) => {
-    if (!facetMatch(video)) return false;
-    if (window.WVB_LIB && WVB_LIB.hidden(video)) return false;
+  const pool = state.videos.filter((video) => facetMatch(video) && !(window.WVB_LIB && WVB_LIB.hidden(video)));
+  const list = pool.filter((video) => {
     if (!query) return true;
     const haystack = [video.name, JSON.stringify(video.meta || {})].join(" ").toLowerCase();
     return query.split(/\s+/).every((token) => haystack.includes(token));
   });
+  const content = window.WVB_SEM ? WVB_SEM.apply(query, pool, list) : null;  // P4.1, ranked by match
+  if (content) return content;
   const by = {
     mtime: (a, b) => b.mtime - a.mtime,
     mtime_asc: (a, b) => a.mtime - b.mtime,
@@ -786,6 +787,7 @@ function buildPlayer(video) {
     preload: "metadata", playsInline: true, poster: posterUrl(video), src: mediaUrl(video),
     ariaLabel: shortName(video),
   });
+  if (window.WVB_SEM) WVB_SEM.seek(media, video);
   // Purely a visual affordance - the click target is the video itself.
   const bigPlay = el("div", { className: "big-play", ariaHidden: "true" }, icon("play"));
 

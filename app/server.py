@@ -35,6 +35,7 @@ import export_settings
 import inputs
 import library
 import metadata as meta_reader
+import semantic_host
 import watcher
 from filmstrip import Filmstrips
 
@@ -600,6 +601,11 @@ class Handler(BaseHTTPRequestHandler):
             vid, _, n_text = route[len("/api/analysis/crop/"):].partition("/")
             crop = detections_api.crop_path(find_video(vid), n_text)
             return self._send_file(crop, "image/jpeg", cache="private, max-age=86400") if crop else self._send_json({"error": "not found"}, 404)
+        if route == "/api/semantic/search":
+            with _index_lock:
+                by_path = {v["path"]: v for v in _index["videos"]}
+            q = urllib.parse.parse_qs(parsed.query).get("q", [""])[0]
+            return self._send_json(semantic_host.search(q, by_path))
 
         if route == "/api/rescan":
             refresh_index()

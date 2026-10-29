@@ -1,0 +1,11 @@
+/* P4.1 semantic search: Text | Content toggle under the search field. */
+.sem-mode { margin-top: 6px; }
+.sem-mode button { flex: 1 1 auto; }
+.sem-note {
+  margin-top: 4px; font-size: 12px; color: var(--ink-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sem-note[hidden] { display: none; }
+@media (max-width: 767px) {
+  .sem-mode button { min-height: 32px; }
+}
