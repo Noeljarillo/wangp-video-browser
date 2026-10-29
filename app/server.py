@@ -28,6 +28,8 @@ from hashlib import sha1
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import library
+
 APP_DIR = Path(__file__).resolve().parent
 WEB_DIR = APP_DIR / "web"
 CACHE_DIR = APP_DIR / ".cache"
@@ -353,6 +355,8 @@ def build_entry(path, root, cache):
         "mtime": stat.st_mtime,
         "filename_info": parse_filename(path.name),
     })
+    if not entry.get("cid"):
+        entry["cid"] = library.content_id(path, stat.st_size)
     return entry
 
 
@@ -503,7 +507,8 @@ class Handler(BaseHTTPRequestHandler):
     def _public_index(self):
         with _index_lock:
             return {
-                "videos": [{k: v for k, v in entry.items() if k != "cache_key"} for entry in _index["videos"]],
+                "videos": [dict({k: v for k, v in entry.items() if k != "cache_key"}, lib=library.get(entry.get("cid")))
+                           for entry in _index["videos"]],
                 "roots": list(_index["roots"]),
                 "scanned_at": _index["scanned_at"],
                 "ffmpeg": bool(FFMPEG),
@@ -582,6 +587,36 @@ class Handler(BaseHTTPRequestHandler):
             refresh_index(roots)
             return self._send_json(self._public_index())
 
+        if parsed.path.startswith("/api/library/"):
+            return self._library_route(parsed.path, payload)
+
+        return self._send_json({"error": "not found"}, 404)
+
+    def _library_route(self, route, payload):
+        ids = payload.get("ids") if isinstance(payload.get("ids"), list) else []
+        entries = [entry for entry in (find_video(str(i)) for i in ids) if entry and entry.get("cid")]
+        if not entries:
+            return self._send_json({"error": "no known clips in ids"}, 400)
+        if route == "/api/library/update":
+            try:
+                items = library.update([e["cid"] for e in entries], payload.get("patch"))
+            except ValueError as error:
+                return self._send_json({"error": str(error)}, 400)
+            return self._send_json({"items": {e["id"]: items[e["cid"]] for e in entries}})
+        if route == "/api/library/trash":
+            # Only clips the user rejected can be trashed, and only to the OS trash (C4).
+            moved, errors = [], []
+            for entry in entries:
+                if library.get(entry["cid"]).get("status") != "reject":
+                    errors.append({"id": entry["id"], "error": "not rejected"})
+                    continue
+                try:
+                    library.move_to_trash(entry["path"])
+                    moved.append(entry["id"])
+                except (OSError, subprocess.SubprocessError) as error:
+                    errors.append({"id": entry["id"], "error": str(error)})
+            refresh_index()
+            return self._send_json(dict(self._public_index(), moved=moved, errors=errors))
         return self._send_json({"error": "not found"}, 404)
 
 

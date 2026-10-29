@@ -18,3 +18,6 @@ CLAUDE.md
 GEMINI.md
 QWEN.md
 .geminiignore
+
+# user-authored data (ratings, tags) - survives Reset
+app/.data/

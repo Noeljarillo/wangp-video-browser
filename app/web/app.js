@@ -404,7 +404,7 @@ function renderFacets() {
     }, [el("option", { value: "", textContent: f.all }),
       ...order.map((value) => el("option", { value, textContent: `${f.show ? f.show(value) : value}  (${counts.get(value)})` }))]);
     select.value = state.facets[f.key] || "";
-    nodes.push(el("div", { className: `select compact facet c-${{ model: "model", steps: "sample", res: "shape", lora: "lora" }[f.key]}` },
+    nodes.push(el("div", { className: `select compact facet c-${f.cls || { model: "model", steps: "sample", res: "shape", lora: "lora" }[f.key]}` },
       [select, icon("down")]));
   }
   const active = FACETS.filter((f) => state.facets[f.key]).length;
@@ -421,6 +421,7 @@ function visibleVideos() {
   const query = $("#search").value.trim().toLowerCase();
   const list = state.videos.filter((video) => {
     if (!facetMatch(video)) return false;
+    if (window.WVB_LIB && WVB_LIB.hidden(video)) return false;
     if (!query) return true;
     const haystack = [video.name, JSON.stringify(video.meta || {})].join(" ").toLowerCase();
     return query.split(/\s+/).every((token) => haystack.includes(token));
@@ -513,6 +514,7 @@ function buildCard(video) {
       el("div", { className: "card-foot" }, `${when} · ${fmtSize(video.size)}`),
     ]),
   ]);
+  if (window.WVB_LIB) WVB_LIB.decorateCard(card, video);
   return el("div", { className: "card-slot", role: "listitem" }, [card, pick]);
 }
 
@@ -841,6 +843,7 @@ function renderPreview() {
         pickIndex >= 0 ? `In compare · ${pickIndex + 1}` : "Compare"]),
       iconButton("drop", "Compare against a file from anywhere", { className: "ghost", onclick: () => $("#filePicker").click() }),
     ]),
+    window.WVB_LIB && !video.external ? WVB_LIB.previewBar(video) : null,
   ]);
 
   const { player } = buildPlayer(video);
