@@ -6,6 +6,7 @@
 
 /* ------------------------------------------------------------------ state */
 const state = {
+  facets: {},           // library filters: { model, steps, res, lora }
   videos: [],
   roots: [],
   ffmpeg: false,
@@ -288,7 +289,8 @@ const promptSections = (text) => {
 const promptTitle = (text) => {
   const sections = promptSections(text);
   const pick = sections && (sections.find((s) => s.key === "summary")
-    || sections.find((s) => /description/.test(s.key)) || sections[0]);
+    || sections.find((s) => /description/.test(s.key))
+    || sections.find((s) => !/sound|music|audio|retention|subject/.test(s.key)) || sections[0]);
   return cleanPrompt(pick ? pick.body : text);
 };
 const shortName = (video, max = 110) => {
@@ -361,20 +363,64 @@ function applyIndex(data) {
 }
 
 /* ------------------------------------------------------------------ sidebar */
-function renderModelFilter() {
-  const select = $("#modelFilter");
-  const previous = select.value;
-  const models = [...new Set(state.videos.map(modelOf))].sort();
-  select.replaceChildren(el("option", { value: "", textContent: "All models" }),
-    ...models.map((m) => el("option", { value: m, textContent: m })));
-  select.value = models.includes(previous) ? previous : "";
+/* Facets are discovered from the library itself: a filter only appears when
+   the clips actually differ on it, and each option shows how many clips it
+   would leave. */
+const NO_LORA = "\u0000none";
+const FACETS = [
+  { key: "model", label: "Model", all: "All models",
+    values: (v) => [Object.keys(v.meta || {}).length ? modelName(v.meta) : "No metadata"] },
+  { key: "steps", label: "Steps", all: "Any steps", numeric: true,
+    values: (v) => ((v.meta || {}).num_inference_steps != null ? [String(v.meta.num_inference_steps)] : []),
+    show: (x) => `${x} steps` },
+  { key: "res", label: "Resolution", all: "Any resolution", numeric: true,
+    values: (v) => (resolutionOf(v) ? [String(resolutionOf(v)).replace("x", "×")] : []) },
+  { key: "lora", label: "LoRA", all: "Any LoRA",
+    values: (v) => { const l = loraList(v.meta || {}); return l.length ? l.map((x) => x.name) : [NO_LORA]; },
+    show: (x) => (x === NO_LORA ? "No LoRA" : x) },
+];
+const facetMatch = (video, skip) => FACETS.every((f) =>
+  f.key === skip || !state.facets[f.key] || f.values(video).includes(state.facets[f.key]));
+
+function renderFacets() {
+  const box = $("#facets");
+  const nodes = [];
+  for (const f of FACETS) {
+    // Counts respect the other active filters, so options never lead to an empty list.
+    const counts = new Map();
+    for (const video of state.videos) {
+      if (!facetMatch(video, f.key)) continue;
+      for (const value of new Set(f.values(video))) counts.set(value, (counts.get(value) || 0) + 1);
+    }
+    const distinct = new Set(state.videos.flatMap(f.values));
+    if (distinct.size < 2 && !state.facets[f.key]) continue;
+    const order = [...counts.keys()].sort((a, b) => (f.numeric
+      ? parseFloat(a) - parseFloat(b) || a.localeCompare(b)
+      : (a === NO_LORA) - (b === NO_LORA) || counts.get(b) - counts.get(a) || a.localeCompare(b)));
+    const select = el("select", {
+      ariaLabel: `Filter by ${f.label.toLowerCase()}`,
+      className: state.facets[f.key] ? "set" : "",
+      onchange: () => { state.facets[f.key] = select.value; renderFacets(); renderList(); },
+    }, [el("option", { value: "", textContent: f.all }),
+      ...order.map((value) => el("option", { value, textContent: `${f.show ? f.show(value) : value}  (${counts.get(value)})` }))]);
+    select.value = state.facets[f.key] || "";
+    nodes.push(el("div", { className: `select compact facet c-${{ model: "model", steps: "sample", res: "shape", lora: "lora" }[f.key]}` },
+      [select, icon("down")]));
+  }
+  const active = FACETS.filter((f) => state.facets[f.key]).length;
+  if (active) {
+    nodes.push(el("button", { className: "link facet-clear", onclick: () => { state.facets = {}; renderFacets(); renderList(); } },
+      `Clear ${active > 1 ? `${active} filters` : "filter"}`));
+  }
+  box.replaceChildren(...nodes);
+  box.hidden = !nodes.length;
 }
+const renderModelFilter = renderFacets;
 
 function visibleVideos() {
   const query = $("#search").value.trim().toLowerCase();
-  const model = $("#modelFilter").value;
   const list = state.videos.filter((video) => {
-    if (model && modelOf(video) !== model) return false;
+    if (!facetMatch(video)) return false;
     if (!query) return true;
     const haystack = [video.name, JSON.stringify(video.meta || {})].join(" ").toLowerCase();
     return query.split(/\s+/).every((token) => haystack.includes(token));
@@ -399,7 +445,7 @@ function renderList() {
       icon("film"),
       el("h3", {}, state.videos.length ? "Nothing matches" : "No clips indexed"),
       el("p", {}, state.videos.length
-        ? "Try a different search term, or clear the model filter."
+        ? "Try a different search term, or clear the filters."
         : "Add the folder WanGP writes its output to and it will appear here."),
       state.videos.length ? null : el("div", { className: "row" },
         el("button", { className: "accent", onclick: () => setView("folders") }, "Add a folder")),
@@ -412,6 +458,8 @@ function renderList() {
 function buildCard(video) {
   const pickIndex = state.picks.indexOf(video.id);
   const meta = video.meta || {};
+  const hasMeta = Object.keys(meta).length > 0;
+  const loras = loraList(meta);
 
   const thumb = el("div", { className: "thumb" });
   if (state.ffmpeg) {
@@ -454,12 +502,15 @@ function buildCard(video) {
     thumb,
     el("div", { className: "card-body" }, [
       el("div", { className: "card-title" }, shortName(video)),
+      hasMeta ? el("div", { className: "card-model", title: modelName(meta) }, modelName(meta)) : null,
       el("div", { className: "card-data" }, dataLine([
-        meta.seed != null ? el("span", { className: "c-seed" }, String(meta.seed)) : null,
-        resolutionOf(video) ? el("span", { className: "c-shape" }, String(resolutionOf(video)).replace("x", "×")) : null,
         meta.num_inference_steps != null ? el("span", { className: "c-sample" }, `${meta.num_inference_steps} steps`) : null,
+        resolutionOf(video) ? el("span", { className: "c-shape" }, String(resolutionOf(video)).replace("x", "×")) : null,
+        meta.seed != null ? el("span", { className: "c-seed", title: "Seed" }, String(meta.seed)) : null,
       ])),
-      el("div", { className: "card-foot", title: Object.keys(meta).length ? modelName(meta) : "" }, `${when} · ${fmtSize(video.size)}`),
+      loras.length ? el("div", { className: "card-loras c-lora", title: loras.map((l) => `${l.name}${l.weight ? ` × ${l.weight}` : ""}`).join("\n") },
+        [el("span", { className: "card-lora" }, loras[0].name), loras.length > 1 ? el("b", {}, `+${loras.length - 1}`) : null]) : null,
+      el("div", { className: "card-foot" }, `${when} · ${fmtSize(video.size)}`),
     ]),
   ]);
   return el("div", { className: "card-slot", role: "listitem" }, [card, pick]);
@@ -1567,7 +1618,7 @@ document.querySelectorAll(".tab, .tabbar-btn").forEach((tab) => {
 $("#sheetBack").onclick = () => { state.sheet = false; setView("preview"); };
 $("#search").oninput = renderList;
 $("#sort").onchange = renderList;
-$("#modelFilter").onchange = renderList;
+
 $("#clearPicks").onclick = () => { state.picks = []; renderAll(); };
 $("#pickVisible").onclick = () => { state.picks = visibleVideos().slice(0, 2).map((v) => v.id); setView("compare"); renderAll(); };
 $("#goCompare").onclick = () => { setView("compare"); renderAll(); };

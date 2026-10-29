@@ -1126,3 +1126,23 @@ input:focus, .select select:focus { border-color: var(--accent); box-shadow: 0 0
 }
 /* Overlay transport keeps its own look; pressed state is a fill, not a box. */
 .transport.overlay button.toggle[aria-pressed="true"] { background: rgba(255, 255, 255, .2); border-color: transparent; color: #fff; }
+
+/* Library filters, discovered from the clips. Each select carries its
+   category colour as a left edge; a set filter is shown in full colour. */
+.facets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.facets[hidden] { display: none; }
+.facet select { border-left: 2px solid var(--cat); }
+.facet select.set { color: var(--cat); font-weight: 600; background: var(--surface-2); }
+.facet-clear { grid-column: 1 / -1; justify-self: start; }
+
+/* Library card: model, then the values runs differ on, then LoRAs. */
+.card-body { gap: 2px; }
+.card-model {
+  font-size: 12px; color: var(--ink-2); font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.card-loras { display: flex; gap: 6px; align-items: baseline; font-size: 12px; min-width: 0; color: var(--cat); }
+.card-lora { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; font-weight: 600; }
+.card-loras b { flex: none; font-weight: 600; opacity: .8; }
+.card-title { -webkit-line-clamp: 1; }
+.card-data .c-seed { font-weight: 400; color: var(--ink-3); }
