@@ -23,7 +23,7 @@ STALE_AFTER = 15  # seconds without a worker heartbeat
 
 # Job kinds enqueued for every clip, in order. "frames" (P3.1) feeds every later
 # analyser; "noop" (the scaffold's smoke test) can be added via ANALYSIS_KINDS.
-KINDS = [k for k in os.environ.get("ANALYSIS_KINDS", "frames,faces,semantic,tags").split(",") if k.strip()]
+KINDS = [k for k in os.environ.get("ANALYSIS_KINDS", "frames,faces,semantic,tags,defects").split(",") if k.strip()]
 
 _lock = threading.Lock()
 _proc = None

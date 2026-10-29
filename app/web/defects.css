@@ -1,0 +1,30 @@
+/* P5.1 defect badges on cards (see web/defects.js). Only shows what was measured. */
+.defect-badges {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  max-width: calc(100% - 12px);
+  pointer-events: none;
+}
+.defect-badge {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 4px;
+  letter-spacing: .02em;
+  color: var(--lab-text, #e8e8ea);
+  background: rgba(24, 24, 28, .82);
+  border: 1px solid rgba(255, 255, 255, .14);
+  backdrop-filter: blur(4px);
+}
+.defect-flicker { border-color: rgba(255, 170, 60, .55); color: #ffbe6b; }
+.defect-frozen { border-color: rgba(120, 190, 255, .5); color: #8fc9ff; }
+.defect-black, .defect-blown { border-color: rgba(255, 255, 255, .3); }
+.defect-jitter { border-color: rgba(255, 120, 180, .5); color: #ff9ec4; }
+.defect-blur { border-color: rgba(180, 180, 190, .45); color: #c9c9d2; }
+.defect-low_aesthetic { border-color: rgba(255, 110, 110, .5); color: #ff9a9a; }
+.defect-aes { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10px; color: #ffd479; }
