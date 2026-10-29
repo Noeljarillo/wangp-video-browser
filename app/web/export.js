@@ -35,6 +35,6 @@ const WVB_EXPORT = (() => {
     ]);
   }
 
-  return { actions, exportable };
+  return { actions, exportable, download };
 })();
 window.WVB_EXPORT = WVB_EXPORT;

@@ -345,7 +345,7 @@
     }
   });
 
-  window.WVB_LIB = { hidden, decorateCard, previewBar, refresh, update, renderTools };
+  window.WVB_LIB = { hidden, decorateCard, previewBar, refresh, update, renderTools, setRating, setStatus, setGroupMode };
 
   // Every list render (load, rescan, filter) also refreshes the reject tools.
   const baseRenderList = renderList;
