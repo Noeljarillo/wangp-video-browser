@@ -6,9 +6,11 @@ module.exports = {
   icon: "icon.png",
   menu: async (kernel, info) => {
     let installed = info.exists("app/env")
+    let analysisInstalled = info.exists("app/analysis/env")
     let running = {
       install: info.running("install.js"),
       start: info.running("start.js"),
+      analysis: info.running("install-analysis.js"),
       update: info.running("update.js"),
       reset: info.running("reset.js")
     }
@@ -18,6 +20,13 @@ module.exports = {
         icon: "fa-solid fa-plug",
         text: "Installing",
         href: "install.js",
+      }]
+    } else if (running.analysis) {
+      return [{
+        default: true,
+        icon: "fa-solid fa-plug",
+        text: "Installing analysis",
+        href: "install-analysis.js",
       }]
     } else if (running.update) {
       return [{
@@ -69,6 +78,10 @@ module.exports = {
           icon: "fa-solid fa-plug",
           text: "Install",
           href: "install.js",
+        }, {
+          icon: "fa-solid fa-microchip",
+          text: analysisInstalled ? "Reinstall analysis" : "Install analysis",
+          href: "install-analysis.js",
         }, {
           icon: "fa-regular fa-circle-xmark",
           text: "Reset",

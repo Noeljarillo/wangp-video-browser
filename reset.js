@@ -10,6 +10,12 @@ module.exports = {
     {
       method: "fs.rm",
       params: {
+        path: "app/analysis/env"
+      }
+    },
+    {
+      method: "fs.rm",
+      params: {
         path: "app/.cache"
       }
     }

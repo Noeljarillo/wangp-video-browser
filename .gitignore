@@ -1,5 +1,6 @@
 # created by install.js / at runtime
 app/env/
+app/analysis/env/
 app/.cache/
 __pycache__/
 *.pyc

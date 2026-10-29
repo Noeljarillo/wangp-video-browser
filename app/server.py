@@ -28,6 +28,7 @@ from hashlib import sha1
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import analysis_host
 import export_compare
 import export_settings
 import inputs
@@ -404,6 +405,7 @@ def refresh_index(roots=None):
         _index["videos"] = entries
         _index["roots"] = [str(r) for r in active_roots]
         _index["scanned_at"] = time.time()
+        _queue_analysis(entries)
         return dict(_index)
 
 
@@ -435,6 +437,8 @@ def apply_changes(added, removed):
         videos.sort(key=lambda item: item["mtime"], reverse=True)
         _index["videos"] = videos
         _save_cache(videos)
+    if fresh:
+        _queue_analysis(fresh)
     if fresh or removed_ids:
         events.publish({"type": "change", "added": [public_entry(e) for e in fresh], "removed": removed_ids})
 
@@ -442,6 +446,11 @@ def apply_changes(added, removed):
 def current_roots():
     with _index_lock:
         return list(_index["roots"])
+def _queue_analysis(entries):
+    try:  # optional add-on (C2): never let it break indexing
+        analysis_host.enqueue_entries(entries)
+    except Exception as error:  # noqa: BLE001
+        print(f"[wangp-video-browser] analysis queue skipped: {error}", file=sys.stderr)
 
 
 def find_video(video_id_value):
@@ -581,6 +590,8 @@ class Handler(BaseHTTPRequestHandler):
 
         if route == "/events":
             return watcher.serve_sse(self, events)
+        if route == "/api/analysis/status":
+            return self._send_json(analysis_host.status())
 
         if route == "/api/rescan":
             refresh_index()
@@ -762,6 +773,7 @@ def main():
         sys.exit(f"[wangp-video-browser] no free port in {args.port}-{args.port + 19}")
     server.daemon_threads = True
 
+    analysis_host.start(FFMPEG)
     refresh_index(roots)
     with _index_lock:
         count = len(_index["videos"])
@@ -776,6 +788,7 @@ def main():
         print("\n[wangp-video-browser] shutting down")
     finally:
         server.server_close()
+        analysis_host.stop()
 
 
 if __name__ == "__main__":
