@@ -39,6 +39,7 @@ import export_settings
 import inputs
 import library
 import metadata as meta_reader
+import reveal
 import semantic_host
 import tags_host
 import watcher
@@ -742,6 +743,19 @@ class Handler(BaseHTTPRequestHandler):
                 roots = [Path(r) for r in _index["roots"] if r != target]
             refresh_index(roots)
             return self._send_json(self._public_index())
+
+        if parsed.path == "/api/reveal":
+            # "Open the folder containing this clip" - an OS action on this
+            # machine, never a download. The clip must be indexed, so a client
+            # cannot ask for an arbitrary path to be opened.
+            entry = find_video(str(payload.get("id") or ""))
+            if not entry:
+                return self._send_json({"error": "unknown clip"}, 404)
+            try:
+                folder = reveal.open_folder(entry.get("path") or "")
+            except (reveal.RevealError, OSError) as error:
+                return self._send_json({"error": str(error), "path": entry.get("path")}, 400)
+            return self._send_json({"ok": True, "folder": str(folder)})
 
         if parsed.path == "/api/characters/action":
             with _index_lock:
