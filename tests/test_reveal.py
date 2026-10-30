@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 import tempfile
@@ -44,8 +45,10 @@ class RevealCandidatesTest(unittest.TestCase):
                                     "--dest=org.freedesktop.FileManager1", "--type=method_call",
                                     "/org/freedesktop/FileManager1",
                                     "org.freedesktop.FileManager1.ShowItems"])
-        # the URI is percent-encoded and quoted the way dbus-send expects it
-        self.assertEqual(argv[7], 'array:string:"file://' + str(self.clip).replace(" ", "%20").replace("&", "%26") + '"')
+        # the URI is percent-encoded and NOT quoted: a leading quote makes the
+        # file manager reject it ("Oops! Something went wrong")
+        self.assertEqual(argv[7], "array:string:file://" + str(self.clip).replace(" ", "%20").replace("&", "%26"))
+        self.assertNotIn('"', argv[7])
         self.assertEqual(argv[8], 'string:""')
         # and xdg-open is still there as the folder-only fallback
         self.assertEqual(candidates[1], (["/usr/bin/xdg-open", str(self.clip.parent)], False))
@@ -115,6 +118,21 @@ class OpenFolderTest(unittest.TestCase):
         self.assertEqual(argv[0], "/usr/bin/dbus-send")
         self.assertTrue(kwargs["start_new_session"])
         self.assertEqual(kwargs["stderr"], reveal.subprocess.PIPE)
+        # a launcher may start the server without the session bus address
+        self.assertIn("env", kwargs)
+
+    def test_session_bus_is_discovered_when_missing(self):
+        # A launcher-started server has no DBUS_SESSION_BUS_ADDRESS; the socket
+        # at /run/user/<uid>/bus is where the session bus always is.
+        env = reveal.child_env({})
+        if Path(f"/run/user/{os.getuid()}/bus").exists():
+            self.assertEqual(env["DBUS_SESSION_BUS_ADDRESS"], f"unix:path=/run/user/{os.getuid()}/bus")
+        else:
+            self.assertNotIn("DBUS_SESSION_BUS_ADDRESS", env)
+        # an explicit address is never overwritten
+        given = {"DBUS_SESSION_BUS_ADDRESS": "unix:path=/run/user/1000/bus,guid=abc"}
+        self.assertEqual(reveal.child_env(given)["DBUS_SESSION_BUS_ADDRESS"], given["DBUS_SESSION_BUS_ADDRESS"])
+        self.assertEqual(given, {"DBUS_SESSION_BUS_ADDRESS": "unix:path=/run/user/1000/bus,guid=abc"})
 
     def test_falls_back_to_folder_only_when_the_bus_call_fails(self):
         folder, selected = self._open([FakeProc(code=1, err=b"Failed to connect to socket\n"),

@@ -63,12 +63,16 @@ def reveal_candidates(path, platform=None, which=shutil.which):
     if file_is_real and which("dbus-send"):
         # Nautilus, Dolphin, Nemo, Caja and Thunar all implement ShowItems; the
         # call fails fast (and we fall through) when none of them owns the name.
+        # The URI must NOT be wrapped in extra quotes: dbus-send would hand the
+        # file manager a value starting with a quote, which is not a URI, and
+        # Nautilus answers with its "Oops! Something went wrong" alert. A
+        # percent-encoded URI has no spaces, so it needs no quoting at all.
         candidates.append((
             [which("dbus-send"), "--session", "--print-reply",
              "--dest=org.freedesktop.FileManager1", "--type=method_call",
              "/org/freedesktop/FileManager1",
              "org.freedesktop.FileManager1.ShowItems",
-             f'array:string:"{_uri(path)}"', 'string:""'],
+             f"array:string:{_uri(path)}", 'string:""'],
             True,
         ))
     if which("xdg-open"):
@@ -89,6 +93,22 @@ def check_session(env=None, platform=None):
         raise RevealError("no desktop session on this machine (DISPLAY/WAYLAND_DISPLAY unset)")
 
 
+def child_env(env=None):
+    """Environment for the opener.
+
+    Launchers (Pinokio, systemd units) often start the server without
+    DBUS_SESSION_BUS_ADDRESS even though the user is logged in on a desktop;
+    dbus-send cannot reach org.freedesktop.FileManager1 without it. The session
+    bus socket is at a fixed path per user, so point at it when it exists.
+    """
+    env = dict(os.environ if env is None else env)
+    if sys.platform.startswith("linux") and not env.get("DBUS_SESSION_BUS_ADDRESS"):
+        socket = Path(f"/run/user/{os.getuid()}/bus")
+        if socket.exists():
+            env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={socket}"
+    return env
+
+
 def open_folder(path, platform=None, env=None, which=shutil.which, popen=None):
     """Show `path` in the file manager; returns `(folder, selected_file)`."""
     check_session(env, platform)
@@ -96,10 +116,12 @@ def open_folder(path, platform=None, env=None, which=shutil.which, popen=None):
     folder = _folder_of(path)
     popen = subprocess.Popen if popen is None else popen
     errors = []
+    child = child_env(env)
 
     for argv, selects in reveal_candidates(path, platform, which):
         try:
-            proc = popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True)
+            proc = popen(argv, env=child, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                         start_new_session=True)
         except OSError as error:
             errors.append(str(error))
             continue
