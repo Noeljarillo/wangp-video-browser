@@ -360,6 +360,8 @@ await fetch(`${BASE}/api/roots/add`, {
   before you press play.
 - Colours are checked against WCAG AA in both themes, every control is reachable from the
   keyboard, and all motion is disabled under `prefers-reduced-motion`.
+- The launcher icon is generated from `icon.svg` (the same mark, simplified, is the
+  in-app favicon): a split screen with a wipe grip, the app's one-screen-two-takes idea.
 
 ## Credits
 
