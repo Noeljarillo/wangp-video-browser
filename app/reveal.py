@@ -1,11 +1,14 @@
 """
-Show a clip's folder in the OS file manager.
+Show a clip in the OS file manager, with the file itself selected where the
+platform allows it.
 
-The server only listens on 127.0.0.1, so "open the folder" always means "ask
-this machine's desktop to show it" - nothing is read, copied or moved (C4).
-Every failure comes back as a `RevealError` with a readable reason, so the UI
-can fall back to putting the path on the clipboard instead of pretending the
-window opened.
+The server only listens on 127.0.0.1, so this always means "ask this machine's
+desktop" - nothing is read, copied or moved (C4). Candidates are tried best
+first: on Linux the freedesktop FileManager1 D-Bus interface both opens the
+folder and highlights the file; `xdg-open` / `gio` can only open the folder, so
+they are the fallback. Every failure comes back as a `RevealError` with a
+readable reason, so the UI can put the path on the clipboard instead of
+pretending a window opened.
 
 Standard library only (C1).
 """
@@ -16,14 +19,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-# How long to watch the opener for an immediate failure (unknown URI scheme,
-# no desktop session...). A file manager that is still starting after this is
-# treated as success - it will show the folder a moment later.
+# How long to watch an opener for an immediate failure (unknown URI scheme, no
+# desktop session...). A file manager still starting after this counts as
+# success - it shows the folder a moment later.
 WAIT_SECONDS = 1.5
 
 
 class RevealError(RuntimeError):
-    """The folder could not be shown; the message says why."""
+    """The clip could not be shown; the message says why."""
 
 
 def _folder_of(path):
@@ -31,35 +34,55 @@ def _folder_of(path):
     return path if path.is_dir() else path.parent
 
 
-def reveal_command(path, platform=None, which=shutil.which):
-    """The argv that shows `path` (or the folder holding it) in a file manager.
+def _uri(path):
+    return Path(path).absolute().as_uri()
 
-    Windows and macOS can highlight the file itself; the freedesktop openers
-    only take a folder, which is what "open the folder containing the video"
-    asks for anyway.
+
+def reveal_candidates(path, platform=None, which=shutil.which):
+    """`[(argv, selects_file)]`, best first, for this platform.
+
+    `selects_file` is True when the file manager highlights the clip instead of
+    only opening the folder around it.
     """
     path = Path(path)
     platform = sys.platform if platform is None else platform
     if not path.exists():
         raise RevealError(f"no such file or folder: {path}")
     folder = _folder_of(path)
+    file_is_real = path.is_file()
 
     if platform.startswith("win"):
-        return ["explorer", f"/select,{path}"] if path.is_file() else ["explorer", str(folder)]
+        # explorer /select, opens the folder with the file highlighted.
+        return [(["explorer", f"/select,{path}"], True)]
     if platform == "darwin":
-        return ["open", "-R", str(path)] if path.is_file() else ["open", str(folder)]
-    if platform.startswith("linux"):
-        if which("xdg-open"):
-            return [which("xdg-open"), str(folder)]
-        if which("gio"):
-            return [which("gio"), "open", str(folder)]
+        return [(["open", "-R", str(path)], True)] if file_is_real else [(["open", str(folder)], False)]
+    if not platform.startswith("linux"):
+        raise RevealError(f"showing a folder is not supported on {platform}")
+
+    candidates = []
+    if file_is_real and which("dbus-send"):
+        # Nautilus, Dolphin, Nemo, Caja and Thunar all implement ShowItems; the
+        # call fails fast (and we fall through) when none of them owns the name.
+        candidates.append((
+            [which("dbus-send"), "--session", "--print-reply",
+             "--dest=org.freedesktop.FileManager1", "--type=method_call",
+             "/org/freedesktop/FileManager1",
+             "org.freedesktop.FileManager1.ShowItems",
+             f'array:string:"{_uri(path)}"', 'string:""'],
+            True,
+        ))
+    if which("xdg-open"):
+        candidates.append(([which("xdg-open"), str(folder)], False))
+    elif which("gio"):
+        candidates.append(([which("gio"), "open", str(folder)], False))
+    if not candidates:
         raise RevealError("no file manager opener found (install xdg-utils or gio)")
-    raise RevealError(f"opening a folder is not supported on {platform}")
+    return candidates
 
 
 def check_session(env=None, platform=None):
     """Linux needs a desktop session; a server started over SSH or from a TTY
-    has none, and xdg-open would fail with a confusing message."""
+    has none, and the openers would fail with a confusing message."""
     platform = sys.platform if platform is None else platform
     env = os.environ if env is None else env
     if platform.startswith("linux") and not env.get("DISPLAY") and not env.get("WAYLAND_DISPLAY"):
@@ -67,21 +90,26 @@ def check_session(env=None, platform=None):
 
 
 def open_folder(path, platform=None, env=None, which=shutil.which, popen=None):
-    """Show `path` in the OS file manager; returns the folder that was opened."""
+    """Show `path` in the file manager; returns `(folder, selected_file)`."""
     check_session(env, platform)
     path = Path(path)
-    argv = reveal_command(path, platform, which)
     folder = _folder_of(path)
     popen = subprocess.Popen if popen is None else popen
-    try:
-        proc = popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True)
-    except OSError as error:
-        raise RevealError(str(error)) from error
-    try:
-        _, err = proc.communicate(timeout=WAIT_SECONDS)
-    except subprocess.TimeoutExpired:
-        return folder
-    if proc.returncode:
+    errors = []
+
+    for argv, selects in reveal_candidates(path, platform, which):
+        try:
+            proc = popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True)
+        except OSError as error:
+            errors.append(str(error))
+            continue
+        try:
+            _, err = proc.communicate(timeout=WAIT_SECONDS)
+        except subprocess.TimeoutExpired:
+            return folder, selects          # still running: it is opening
+        if proc.returncode == 0:
+            return folder, selects
         lines = (err or b"").decode("utf-8", "replace").strip().splitlines()
-        raise RevealError(lines[-1] if lines else f"the file manager exited with {proc.returncode}")
-    return folder
+        errors.append(lines[-1] if lines else f"{Path(argv[0]).name} exited with {proc.returncode}")
+
+    raise RevealError(errors[-1] if errors else "no way to show the folder")

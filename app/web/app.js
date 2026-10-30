@@ -329,9 +329,10 @@ async function copy(text) {
   try { await navigator.clipboard.writeText(text); flash("Copied to clipboard"); }
   catch { flash("Copy failed"); }
 }
-/* Local-only app: the server opens the folder on this machine's desktop. When
-   it cannot (headless session, no file manager), the path goes to the
-   clipboard instead - the toast must never claim a window that did not open. */
+/* Local-only app: the server asks this machine's desktop to show the clip, and
+   selects the file where the platform can (FileManager1, open -R,
+   explorer /select). When it cannot, the path goes to the clipboard instead -
+   the toast must never claim a window that did not open. */
 async function openFolder(video) {
   const folder = (video.path || "").slice(0, -(video.name.length + 1)) || video.path || "";
   try {
@@ -340,14 +341,14 @@ async function openFolder(video) {
       body: JSON.stringify({ id: video.id }),
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "could not open the folder");
-    flash("Opened in the file manager");
+    if (!response.ok) throw new Error(data.error || "could not show the folder");
+    flash(data.selected ? "Selected in the file manager" : "Opened the folder");
   } catch (error) {
     try {
       await navigator.clipboard.writeText(folder);
-      flash(`Couldn't open the folder (${error.message}) - path copied`);
+      flash(`Couldn't show the folder (${error.message}) - path copied`);
     } catch {
-      flash(`Couldn't open the folder: ${error.message}`);
+      flash(`Couldn't show the folder: ${error.message}`);
     }
   }
 }
@@ -872,6 +873,11 @@ function renderPreview() {
       el("h2", { className: "preview-title" }, shortName(video, 160)),
     ]),
     el("div", { className: "preview-actions" }, [
+      video.external ? null : el("button", {
+        className: "ghost",
+        title: "Show this clip in the file manager - the file itself is selected",
+        onclick: () => openFolder(video),
+      }, [icon("folder"), el("span", { className: "btn-label" }, "Show in folder")]),
       el("button", {
         className: `ghost${pickIndex >= 0 ? " on" : ""}`,
         onclick: () => togglePick(video.id),
@@ -1001,11 +1007,7 @@ function renderPreview() {
     probe.has_audio ? `audio ${probe.audio_codec}` : "no audio"].filter(Boolean).join(" · ");
   const file = el("div", { className: "file" }, [
     el("button", { className: "filename", title: "Copy full path", onclick: () => copy(video.path || video.name) }, video.name),
-    video.external
-      ? el("div", { className: "file-path", title: folder }, folder)
-      : el("button", { className: "open-folder", title: `Open ${folder} in the file manager`,
-        ariaLabel: `Open the folder containing ${video.name}`, onclick: () => openFolder(video) },
-      [icon("folder"), el("span", { className: "fp-text" }, folder)]),
+    el("div", { className: "file-path", title: folder }, folder),
     el("div", { className: "file-meta" }, stream),
   ]);
 

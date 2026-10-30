@@ -40,7 +40,7 @@ This app reads it back and builds a proper video library on top of it.
 | **A/B comparison** | Up to four clips on one synced transport: play, scrub and frame-step them together, solo any clip's audio. |
 | **Input references** | The start/end frames, reference images and guide media a clip was made from, in a strip under the player and under each clip in Compare. Click to enlarge; missing files show "not found" with the recorded path. WanGP only keeps them when *Config > Outputs > Embed Source Images* is on. |
 | **Re-run in WanGP** | Export any clip's settings as the JSON WanGP loads, optionally with a new seed. |
-| **Open the folder** | The folder line under a clip's file name is a button: it opens the containing folder in your file manager (with the file itself selected on macOS and Windows). If the server has no desktop session, the path lands on the clipboard instead. |
+| **Show in folder** | A button in the preview header puts the clip in your file manager **with the file itself selected** (freedesktop `FileManager1` on Linux, `open -R` on macOS, `explorer /select` on Windows). Linux falls back to opening the folder with xdg-open/gio when no file manager answers on the bus. If the server has no desktop session, the path lands on the clipboard instead. |
 | **Settings diff** | Only the settings that differ between runs, with a word-by-word prompt diff. |
 | **Wipe & blink** | Overlay two takes in the same screen position and drag a divider, or flicker between them so motion differences jump out. |
 | **Mobile** | A real phone layout with bottom navigation, sheet previews and full-screen wipe. Open it over your LAN through Pinokio. |
@@ -235,7 +235,7 @@ taken it moves to the next free port and prints the address in the Terminal tab.
 | `GET` | `/api/export/<id>` | WanGP-loadable settings JSON for the clip (`?new_seed=1` for a fresh seed); 400 for non-WanGP clips |
 | `POST` | `/api/roots/add` | Body `{"path": "..."}` — index an extra folder, remembered across restarts |
 | `POST` | `/api/roots/remove` | Body `{"path": "..."}` — stop indexing a folder |
-| `POST` | `/api/reveal` | Body `{"id": "..."}` — open that clip's folder in this machine's file manager. `400` with the clip's `path` when there is no desktop session; `404` for an id that is not indexed |
+| `POST` | `/api/reveal` | Body `{"id": "..."}` — show that clip in this machine's file manager and select it (`selected: true` when it worked; `false` when only the folder could be opened). `400` with the clip's `path` when there is no desktop session; `404` for an id that is not indexed |
 
 Each entry in `videos` looks like:
 

@@ -752,10 +752,10 @@ class Handler(BaseHTTPRequestHandler):
             if not entry:
                 return self._send_json({"error": "unknown clip"}, 404)
             try:
-                folder = reveal.open_folder(entry.get("path") or "")
+                folder, selected = reveal.open_folder(entry.get("path") or "")
             except (reveal.RevealError, OSError) as error:
                 return self._send_json({"error": str(error), "path": entry.get("path")}, 400)
-            return self._send_json({"ok": True, "folder": str(folder)})
+            return self._send_json({"ok": True, "folder": str(folder), "selected": selected})
 
         if parsed.path == "/api/characters/action":
             with _index_lock:
